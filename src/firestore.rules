@@ -1,0 +1,178 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // ============================================
+    // 헬퍼 함수들
+    // ============================================
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    // 전역 관리자 확인 (시스템 관리자)
+    function isSystemAdmin() {
+      return isAuthenticated() && 
+             exists(/databases/$(database)/documents/admins/$(request.auth.uid)) &&
+             get(/databases/$(database)/documents/admins/$(request.auth.uid)).data.isAdmin == true;
+    }
+    
+    // 특정 상점의 관리자인지 확인 (멀티 테넌트)
+    function isStoreAdmin(storeId) {
+      return isAuthenticated() && 
+             exists(/databases/$(database)/documents/adminStores/$(request.auth.uid + '_' + storeId));
+    }
+    
+    // 상점 소유자인지 확인
+    function isStoreOwner(storeId) {
+      return isAuthenticated() && 
+             exists(/databases/$(database)/documents/adminStores/$(request.auth.uid + '_' + storeId)) &&
+             get(/databases/$(database)/documents/adminStores/$(request.auth.uid + '_' + storeId)).data.role == 'owner';
+    }
+    
+    // ============================================
+    // 상점 문서 (stores 컬렉션)
+    // ============================================
+    
+    match /stores/{storeId} {
+      // 읽기: 모든 인증된 사용자
+      allow read: if isAuthenticated();
+      
+      // 생성: 인증된 사용자 (새 상점 생성)
+      allow create: if isAuthenticated();
+      
+      // 수정: 상점 소유자만
+      allow update: if isStoreOwner(storeId) || isSystemAdmin();
+      
+      // 삭제: 상점 소유자 또는 시스템 관리자
+      allow delete: if isStoreOwner(storeId) || isSystemAdmin();
+      
+      // ============================================
+      // 상점 하위 컬렉션들 (데이터 격리)
+      // ============================================
+      
+      // 메뉴 (stores/{storeId}/menus)
+      match /menus/{menuId} {
+        allow read: if isAuthenticated();
+        allow create, update, delete: if isStoreAdmin(storeId) || isSystemAdmin();
+      }
+      
+      // 주문 (stores/{storeId}/orders)
+      match /orders/{orderId} {
+        allow read: if isAuthenticated() && 
+                      (resource.data.userId == request.auth.uid || isStoreAdmin(storeId) || isSystemAdmin());
+        
+        allow create: if isAuthenticated() && 
+                        request.resource.data.userId == request.auth.uid;
+        
+        allow update: if isStoreAdmin(storeId) || isSystemAdmin();
+        
+        allow delete: if isStoreAdmin(storeId) || isSystemAdmin();
+      }
+      
+      // 쿠폰 (stores/{storeId}/coupons)
+      match /coupons/{couponId} {
+        allow read: if isAuthenticated();
+        allow create, update, delete: if isStoreAdmin(storeId) || isSystemAdmin();
+      }
+      
+      // 쿠폰 사용 내역 (stores/{storeId}/couponUsages)
+      match /couponUsages/{usageId} {
+        allow read: if isAuthenticated() && 
+                      (resource.data.userId == request.auth.uid || isStoreAdmin(storeId) || isSystemAdmin());
+        
+        allow create: if isAuthenticated() && 
+                        request.resource.data.userId == request.auth.uid;
+        
+        allow update, delete: if isStoreAdmin(storeId) || isSystemAdmin();
+      }
+      
+      // 리뷰 (stores/{storeId}/reviews)
+      match /reviews/{reviewId} {
+        allow read: if isAuthenticated();
+        
+        allow create: if isAuthenticated() && 
+                        request.resource.data.userId == request.auth.uid;
+        
+        allow update: if isAuthenticated() && 
+                        resource.data.userId == request.auth.uid;
+        
+        allow delete: if isAuthenticated() && 
+                        (resource.data.userId == request.auth.uid || isStoreAdmin(storeId) || isSystemAdmin());
+      }
+      
+      // 공지사항 (stores/{storeId}/notices)
+      match /notices/{noticeId} {
+        allow read: if isAuthenticated();
+        allow create, update, delete: if isStoreAdmin(storeId) || isSystemAdmin();
+      }
+      
+      // 이벤트 배너 (stores/{storeId}/events)
+      match /events/{eventId} {
+        allow read: if isAuthenticated();
+        allow create, update, delete: if isStoreAdmin(storeId) || isSystemAdmin();
+      }
+    }
+    
+    // ============================================
+    // 전역 컬렉션들 (상점 독립적)
+    // ============================================
+    
+    // 사용자 문서
+    match /users/{userId} {
+      allow read: if isOwner(userId) || isSystemAdmin();
+      allow create: if isOwner(userId);
+      allow update: if isOwner(userId);
+      allow delete: if isOwner(userId) || isSystemAdmin();
+    }
+    
+    // 시스템 관리자 문서
+    match /admins/{userId} {
+      allow read: if isOwner(userId);
+      allow write: if false; // 서버에서만 설정
+    }
+    
+    // 관리자-상점 매핑 (adminStores)
+    match /adminStores/{adminStoreId} {
+      // 읽기: 본인이 포함된 매핑 또는 시스템 관리자
+      allow read: if isAuthenticated() && 
+                    (resource.data.adminUid == request.auth.uid || isSystemAdmin());
+      
+      // 생성: 상점 소유자가 다른 관리자 추가
+      allow create: if isAuthenticated();
+      
+      // 수정: 상점 소유자 또는 시스템 관리자
+      allow update: if isSystemAdmin();
+      
+      // 삭제: 상점 소유자 또는 시스템 관리자
+      allow delete: if isSystemAdmin();
+    }
+    
+    // 푸시 토큰
+    match /pushTokens/{tokenId} {
+      allow read: if isAuthenticated() && 
+                    (resource.data.uid == request.auth.uid || isSystemAdmin());
+      
+      allow create, update: if isAuthenticated() && 
+                              request.resource.data.uid == request.auth.uid;
+      
+      allow delete: if isAuthenticated() && 
+                      (resource.data.uid == request.auth.uid || isSystemAdmin());
+    }
+    
+    // 푸시 로그
+    match /pushLogs/{logId} {
+      allow read: if isSystemAdmin();
+      allow write: if false; // 서버에서만
+    }
+    
+    // 기본적으로 모든 다른 문서는 거부
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

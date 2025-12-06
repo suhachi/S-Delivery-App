@@ -1,0 +1,281 @@
+/**
+ * 관리자 상점 설정 페이지
+ * 상점 정보 수정, 브랜딩, 운영 시간 등 설정
+ */
+
+import { useState, useEffect } from 'react';
+import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { db } from '../../lib/firebase';
+import { useStore } from '../../contexts/StoreContext';
+import { UpdateStoreFormData } from '../../types/store';
+import { toast } from 'sonner@2.0.3';
+import { useNavigate } from 'react-router-dom';
+import AdminSidebar from '../../components/admin/AdminSidebar';
+import Card from '../../components/common/Card';
+import Button from '../../components/common/Button';
+import Input from '../../components/common/Input';
+import { Store, Save, Plus } from 'lucide-react';
+
+export default function AdminStoreSettings() {
+  const navigate = useNavigate();
+  const { store, loading } = useStore();
+  const [saving, setSaving] = useState(false);
+  const [formData, setFormData] = useState<UpdateStoreFormData>({
+    name: '',
+    description: '',
+    phone: '',
+    email: '',
+    address: '',
+    deliveryFee: 0,
+    minOrderAmount: 0,
+    logoUrl: '',
+    bannerUrl: '',
+    primaryColor: '#3b82f6',
+  });
+
+  useEffect(() => {
+    if (store) {
+      setFormData({
+        name: store.name,
+        description: store.description,
+        phone: store.phone,
+        email: store.email,
+        address: store.address,
+        deliveryFee: store.deliveryFee,
+        minOrderAmount: store.minOrderAmount,
+        logoUrl: store.logoUrl || '',
+        bannerUrl: store.bannerUrl || '',
+        primaryColor: store.primaryColor || '#3b82f6',
+      });
+    }
+  }, [store]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!store) {
+      toast.error('상점 정보를 불러올 수 없습니다');
+      return;
+    }
+
+    setSaving(true);
+
+    try {
+      const storeRef = doc(db, 'store', 'default');
+      await updateDoc(storeRef, {
+        ...formData,
+        updatedAt: serverTimestamp(),
+      });
+
+      toast.success('상점 정보가 업데이트되었습니다');
+    } catch (error) {
+      console.error('Failed to update store:', error);
+      toast.error('상점 정보 업데이트에 실패했습니다');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (!store) {
+    return (
+      <div className="flex min-h-screen bg-gray-50">
+        <AdminSidebar />
+        <main className="flex-1 p-8">
+          <div className="max-w-2xl mx-auto text-center py-16">
+            {loading ? (
+              // 로딩 중
+              <div className="space-y-4">
+                <div className="w-16 h-16 gradient-primary rounded-2xl flex items-center justify-center mx-auto animate-pulse">
+                  <Store className="w-8 h-8 text-white" />
+                </div>
+                <h2 className="text-2xl font-bold text-gray-900">상점 정보 로딩 중...</h2>
+                <p className="text-gray-600">잠시만 기다려주세요</p>
+              </div>
+            ) : (
+              // 상점이 없을 때
+              <div className="space-y-6">
+                <div className="w-16 h-16 bg-gray-200 rounded-2xl flex items-center justify-center mx-auto">
+                  <Store className="w-8 h-8 text-gray-400" />
+                </div>
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-900 mb-2">상점이 없습니다</h2>
+                  <p className="text-gray-600 mb-6">
+                    현재 운영 중인 상점이 없습니다.<br />
+                    상점을 생성하여 배달 앱 운영을 시작하세요.
+                  </p>
+                  <Button
+                    onClick={() => navigate('/store-setup')}
+                    size="lg"
+                  >
+                    <Plus className="w-5 h-5 mr-2" />
+                    새 상점 생성하기
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex min-h-screen bg-gray-50">
+      <AdminSidebar />
+
+      <main className="flex-1 p-8">
+        <div className="max-w-4xl mx-auto">
+          {/* Header */}
+          <div className="mb-8">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-12 h-12 gradient-primary rounded-2xl flex items-center justify-center">
+                <Store className="w-6 h-6 text-white" />
+              </div>
+              <h1 className="text-3xl">
+                <span className="bg-gradient-to-r from-blue-600 to-blue-500 bg-clip-text text-transparent">
+                  상점 설정
+                </span>
+              </h1>
+            </div>
+            <p className="text-gray-600">
+              상점 정보와 설정을 관리합니다
+            </p>
+          </div>
+
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {/* 기본 정보 */}
+            <Card>
+              <h2 className="text-xl font-bold text-gray-900 mb-6">기본 정보</h2>
+
+              <div className="space-y-5">
+                <Input
+                  label="상점 이름"
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  required
+                />
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                    상점 설명
+                  </label>
+                  <textarea
+                    value={formData.description}
+                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                    className="w-full px-4 py-2.5 text-gray-900 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 resize-none"
+                    rows={4}
+                  />
+                </div>
+              </div>
+            </Card>
+
+            {/* 연락처 정보 */}
+            <Card>
+              <h2 className="text-xl font-bold text-gray-900 mb-6">연락처 정보</h2>
+
+              <div className="space-y-5">
+                <Input
+                  label="전화번호"
+                  type="tel"
+                  value={formData.phone}
+                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                  required
+                />
+
+                <Input
+                  label="이메일"
+                  type="email"
+                  value={formData.email}
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  required
+                />
+
+                <Input
+                  label="주소"
+                  value={formData.address}
+                  onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                  required
+                />
+              </div>
+            </Card>
+
+            {/* 배달 설정 */}
+            <Card>
+              <h2 className="text-xl font-bold text-gray-900 mb-6">배달 설정</h2>
+
+              <div className="space-y-5">
+                <Input
+                  label="배달비 (원)"
+                  type="number"
+                  value={formData.deliveryFee}
+                  onChange={(e) => setFormData({ ...formData, deliveryFee: parseInt(e.target.value) || 0 })}
+                  required
+                />
+
+                <Input
+                  label="최소 주문 금액 (원)"
+                  type="number"
+                  value={formData.minOrderAmount}
+                  onChange={(e) => setFormData({ ...formData, minOrderAmount: parseInt(e.target.value) || 0 })}
+                  required
+                />
+              </div>
+            </Card>
+
+            {/* 브랜딩 */}
+            <Card>
+              <h2 className="text-xl font-bold text-gray-900 mb-6">브랜딩</h2>
+
+              <div className="space-y-5">
+                <Input
+                  label="로고 URL (선택)"
+                  value={formData.logoUrl}
+                  onChange={(e) => setFormData({ ...formData, logoUrl: e.target.value })}
+                  placeholder="https://example.com/logo.png"
+                />
+
+                <Input
+                  label="배너 이미지 URL (선택)"
+                  value={formData.bannerUrl}
+                  onChange={(e) => setFormData({ ...formData, bannerUrl: e.target.value })}
+                  placeholder="https://example.com/banner.jpg"
+                />
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                    메인 테마 색상
+                  </label>
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="color"
+                      value={formData.primaryColor}
+                      onChange={(e) => setFormData({ ...formData, primaryColor: e.target.value })}
+                      className="w-16 h-10 border border-gray-300 rounded cursor-pointer"
+                    />
+                    <Input
+                      value={formData.primaryColor}
+                      onChange={(e) => setFormData({ ...formData, primaryColor: e.target.value })}
+                      placeholder="#3b82f6"
+                    />
+                  </div>
+                </div>
+              </div>
+            </Card>
+
+            {/* Submit Button */}
+            <div className="flex justify-end gap-4">
+              <Button
+                type="submit"
+                disabled={saving}
+                size="lg"
+              >
+                <Save className="w-5 h-5 mr-2" />
+                {saving ? '저장 중...' : '변경사항 저장'}
+              </Button>
+            </div>
+          </form>
+        </div>
+      </main>
+    </div>
+  );
+}

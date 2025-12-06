@@ -1,0 +1,64 @@
+import { Link, useLocation } from 'react-router-dom';
+import { LayoutDashboard, UtensilsCrossed, Package, Ticket, Star, Bell, Calendar, Settings, Home } from 'lucide-react';
+
+export default function AdminSidebar() {
+  const location = useLocation();
+
+  const menuItems = [
+    { path: '/admin', icon: <LayoutDashboard className="w-5 h-5" />, label: '대시보드', exact: true },
+    { path: '/admin/orders', icon: <Package className="w-5 h-5" />, label: '주문 관리' },
+    { path: '/admin/menus', icon: <UtensilsCrossed className="w-5 h-5" />, label: '메뉴 관리' },
+    { path: '/admin/coupons', icon: <Ticket className="w-5 h-5" />, label: '쿠폰 관리' },
+    { path: '/admin/reviews', icon: <Star className="w-5 h-5" />, label: '리뷰 관리' },
+    { path: '/admin/notices', icon: <Bell className="w-5 h-5" />, label: '공지사항 관리' },
+    { path: '/admin/events', icon: <Calendar className="w-5 h-5" />, label: '이벤트 관리' },
+    { path: '/admin/store-settings', icon: <Settings className="w-5 h-5" />, label: '상점 설정' },
+  ];
+
+  const isActive = (path: string, exact = false) => {
+    if (exact) {
+      return location.pathname === path;
+    }
+    return location.pathname.startsWith(path);
+  };
+
+  return (
+    <aside className="w-64 bg-white border-r border-gray-200 min-h-screen">
+      <div className="p-6">
+        {/* 로고 영역 */}
+        <div className="mb-8 flex items-center justify-center">
+          <h1 className="text-xl font-bold text-gray-800">관리자 페이지</h1>
+        </div>
+
+        <nav className="space-y-1">
+          {menuItems.map((item) => (
+            <Link
+              key={item.path}
+              to={item.path}
+              className={`
+                flex items-center space-x-3 px-4 py-3 rounded-lg transition-all
+                ${isActive(item.path, item.exact)
+                  ? 'gradient-primary text-white shadow-md'
+                  : 'text-gray-700 hover:bg-gray-100'
+                }
+              `}
+            >
+              {item.icon}
+              <span className="font-medium">{item.label}</span>
+            </Link>
+          ))}
+        </nav>
+
+        <div className="mt-8 pt-8 border-t border-gray-200">
+          <Link
+            to="/"
+            className="flex items-center space-x-3 px-4 py-3 text-gray-700 hover:bg-gray-100 rounded-lg transition-all"
+          >
+            <Home className="w-5 h-5" />
+            <span className="font-medium">사용자 페이지</span>
+          </Link>
+        </div>
+      </div>
+    </aside>
+  );
+}
