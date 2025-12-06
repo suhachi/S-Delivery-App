@@ -1,7 +1,7 @@
-import { 
-  ref, 
-  uploadBytes, 
-  getDownloadURL, 
+import {
+  ref,
+  uploadBytes,
+  getDownloadURL,
   deleteObject,
   uploadBytesResumable,
   UploadTask
@@ -10,17 +10,17 @@ import { storage } from '../lib/firebase';
 
 // 이미지 업로드
 export async function uploadImage(
-  file: File, 
+  file: File,
   path: string,
   onProgress?: (progress: number) => void
 ): Promise<string> {
   try {
     const storageRef = ref(storage, path);
-    
+
     if (onProgress) {
       // 진행상황을 추적하려면 uploadBytesResumable 사용
       const uploadTask = uploadBytesResumable(storageRef, file);
-      
+
       return new Promise((resolve, reject) => {
         uploadTask.on(
           'state_changed',
@@ -113,11 +113,11 @@ export async function resizeImage(
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.readAsDataURL(file);
-    
+
     reader.onload = (event) => {
       const img = new Image();
       img.src = event.target?.result as string;
-      
+
       img.onload = () => {
         const canvas = document.createElement('canvas');
         let width = img.width;
@@ -154,10 +154,24 @@ export async function resizeImage(
           0.9
         );
       };
-      
+
       img.onerror = () => reject(new Error('이미지 로드 실패'));
     };
-    
+
     reader.onerror = () => reject(new Error('파일 읽기 실패'));
   });
+}
+
+// 이벤트 이미지 업로드
+export async function uploadEventImage(file: File): Promise<string> {
+  const path = `events/${Date.now()}_${file.name}`;
+  return uploadImage(file, path);
+}
+
+// 상점 이미지 업로드 (로고/배너)
+export async function uploadStoreImage(file: File, type: 'logo' | 'banner'): Promise<string> {
+  // 경로: store/{type}_{timestamp}_{filename}
+  const timestamp = Date.now();
+  const path = `store/${type}_${timestamp}_${file.name}`;
+  return uploadImage(file, path);
 }

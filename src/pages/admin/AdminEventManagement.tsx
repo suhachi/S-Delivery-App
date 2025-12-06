@@ -11,6 +11,8 @@ import { formatDateShort } from '../../utils/formatDate';
 import { useStore } from '../../contexts/StoreContext';
 import { useFirestoreCollection } from '../../hooks/useFirestoreCollection';
 import { createEvent, updateEvent, deleteEvent, toggleEventActive, getAllEventsQuery } from '../../services/eventService';
+import { uploadEventImage } from '../../services/storageService';
+import ImageUpload from '../../components/common/ImageUpload';
 
 export default function AdminEventManagement() {
   const { store } = useStore();
@@ -87,7 +89,7 @@ export default function AdminEventManagement() {
           <div className="mb-8 flex items-center justify-between">
             <div>
               <h1 className="text-3xl mb-2">
-                <span className="bg-gradient-to-r from-blue-600 to-blue-500 bg-clip-text text-transparent">
+                <span className="bg-gradient-to-r from-primary-600 to-primary-500 bg-clip-text text-transparent">
                   이벤트 배너 관리
                 </span>
               </h1>
@@ -255,13 +257,15 @@ function EventFormModal({ event, onSave, onClose }: EventFormModalProps) {
             required
           />
 
-          <Input
-            label="이미지 URL"
-            value={formData.imageUrl}
-            onChange={(e) => setFormData({ ...formData, imageUrl: e.target.value })}
-            placeholder="https://example.com/banner.jpg"
-            required
-          />
+          <div className="mb-4">
+            <ImageUpload
+              label="이벤트 배너 이미지"
+              currentImageUrl={formData.imageUrl}
+              onImageUploaded={(url) => setFormData({ ...formData, imageUrl: url })}
+              onUpload={(file) => uploadEventImage(file)}
+              aspectRatio="wide"
+            />
+          </div>
 
           <Input
             label="링크 URL (선택)"

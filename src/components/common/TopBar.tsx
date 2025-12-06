@@ -1,13 +1,15 @@
+import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ShoppingCart, LogOut, User, Store, Menu, X } from 'lucide-react';
+import { toast } from 'sonner';
 import { useAuth } from '../../contexts/AuthContext';
 import { useCart } from '../../contexts/CartContext';
-import { useState } from 'react';
-import { toast } from 'sonner@2.0.3';
+import { useStore } from '../../contexts/StoreContext';
 
 export default function TopBar() {
   const navigate = useNavigate();
   const { user, isAdmin, logout } = useAuth();
+  const { store } = useStore();
   const { getTotalItems } = useCart();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const cartItemsCount = getTotalItems();
@@ -24,11 +26,19 @@ export default function TopBar() {
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
           <Link to="/" className="flex items-center space-x-2 group">
-            <div className="w-10 h-10 gradient-primary rounded-xl flex items-center justify-center transform group-hover:scale-105 transition-transform">
-              <span className="text-white text-xl">🍜</span>
-            </div>
-            <span className="text-xl font-bold bg-gradient-to-r from-blue-600 to-blue-500 bg-clip-text text-transparent">
-              커스컴배달앱
+            {store?.logoUrl ? (
+              <img
+                src={store.logoUrl}
+                alt={store.name}
+                className="w-10 h-10 rounded-xl object-cover border border-gray-100 shadow-sm transform group-hover:scale-105 transition-transform"
+              />
+            ) : (
+              <div className="w-10 h-10 gradient-primary rounded-xl flex items-center justify-center transform group-hover:scale-105 transition-transform">
+                <span className="text-white text-xl">🍜</span>
+              </div>
+            )}
+            <span className="text-xl font-bold text-primary-600">
+              {store?.name || '배달앱'}
             </span>
           </Link>
 

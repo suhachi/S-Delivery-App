@@ -14,6 +14,8 @@ import AdminSidebar from '../../components/admin/AdminSidebar';
 import Card from '../../components/common/Card';
 import Button from '../../components/common/Button';
 import Input from '../../components/common/Input';
+import ImageUpload from '../../components/common/ImageUpload';
+import { uploadStoreImage } from '../../services/storageService';
 import { Store, Save, Plus } from 'lucide-react';
 
 export default function AdminStoreSettings() {
@@ -132,7 +134,7 @@ export default function AdminStoreSettings() {
                 <Store className="w-6 h-6 text-white" />
               </div>
               <h1 className="text-3xl">
-                <span className="bg-gradient-to-r from-blue-600 to-blue-500 bg-clip-text text-transparent">
+                <span className="bg-gradient-to-r from-primary-600 to-primary-500 bg-clip-text text-transparent">
                   상점 설정
                 </span>
               </h1>
@@ -162,7 +164,7 @@ export default function AdminStoreSettings() {
                   <textarea
                     value={formData.description}
                     onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                    className="w-full px-4 py-2.5 text-gray-900 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 resize-none"
+                    className="w-full px-4 py-2.5 text-gray-900 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all duration-200 resize-none"
                     rows={4}
                   />
                 </div>
@@ -227,18 +229,41 @@ export default function AdminStoreSettings() {
               <h2 className="text-xl font-bold text-gray-900 mb-6">브랜딩</h2>
 
               <div className="space-y-5">
-                <Input
-                  label="로고 URL (선택)"
-                  value={formData.logoUrl}
-                  onChange={(e) => setFormData({ ...formData, logoUrl: e.target.value })}
-                  placeholder="https://example.com/logo.png"
+                <ImageUpload
+                  label="상점 로고 (선택)"
+                  currentImageUrl={formData.logoUrl}
+                  onImageUploaded={async (url) => {
+                    setFormData(prev => ({ ...prev, logoUrl: url }));
+                    // Auto-save logic
+                    try {
+                      await updateDoc(doc(db, 'store', 'default'), { logoUrl: url });
+                      toast.success('상점 로고가 저장되었습니다');
+                    } catch (error) {
+                      console.error('Failed to auto-save logo:', error);
+                      toast.error('로고 저장 실패');
+                    }
+                  }}
+                  onUpload={(file) => uploadStoreImage(file, 'logo')}
+                  aspectRatio="square"
+                  circle
                 />
 
-                <Input
-                  label="배너 이미지 URL (선택)"
-                  value={formData.bannerUrl}
-                  onChange={(e) => setFormData({ ...formData, bannerUrl: e.target.value })}
-                  placeholder="https://example.com/banner.jpg"
+                <ImageUpload
+                  label="배너 이미지 (선택)"
+                  currentImageUrl={formData.bannerUrl}
+                  onImageUploaded={async (url) => {
+                    setFormData(prev => ({ ...prev, bannerUrl: url }));
+                    // Auto-save logic
+                    try {
+                      await updateDoc(doc(db, 'store', 'default'), { bannerUrl: url });
+                      toast.success('배너 이미지가 저장되었습니다');
+                    } catch (error) {
+                      console.error('Failed to auto-save banner:', error);
+                      toast.error('배너 저장 실패');
+                    }
+                  }}
+                  onUpload={(file) => uploadStoreImage(file, 'banner')}
+                  aspectRatio="wide"
                 />
 
                 <div>

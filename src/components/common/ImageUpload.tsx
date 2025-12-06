@@ -2,19 +2,42 @@ import { useState, useRef } from 'react';
 import { Upload, X, Image as ImageIcon } from 'lucide-react';
 import { uploadMenuImage, validateImageFile } from '../../services/storageService';
 import { toast } from 'sonner';
-import Button from './Button';
 
 interface ImageUploadProps {
-  menuId: string;
+  label?: string;
   currentImageUrl?: string;
   onImageUploaded: (url: string) => void;
+  // Optional specific props
+  menuId?: string;
+  onUpload?: (file: File, onProgress: (progress: number) => void) => Promise<string>;
+  aspectRatio?: 'square' | 'wide' | 'standard'; // square=1:1, wide=16:9, standard=4:3
+  circle?: boolean; // For profile/logo images
+  defaultImage?: string; // Fallback or initial image
 }
 
-export default function ImageUpload({ menuId, currentImageUrl, onImageUploaded }: ImageUploadProps) {
+export default function ImageUpload({
+  label = '이미지',
+  currentImageUrl,
+  onImageUploaded,
+  menuId,
+  onUpload,
+  aspectRatio = 'standard',
+  circle = false,
+  defaultImage
+}: ImageUploadProps) {
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState(0);
-  const [previewUrl, setPreviewUrl] = useState<string | undefined>(currentImageUrl);
+  const [previewUrl, setPreviewUrl] = useState<string | undefined>(currentImageUrl || defaultImage);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const getAspectRatioClass = () => {
+    if (circle) return 'aspect-square rounded-full';
+    switch (aspectRatio) {
+      case 'square': return 'aspect-square rounded-lg';
+      case 'wide': return 'aspect-[16/9] rounded-lg';
+      case 'standard': default: return 'aspect-[4/3] rounded-lg';
+    }
+  };
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -34,19 +57,27 @@ export default function ImageUpload({ menuId, currentImageUrl, onImageUploaded }
     };
     reader.readAsDataURL(file);
 
-    // Firebase Storage 업로드
+    // 업로드 실행
     setUploading(true);
     try {
-      const downloadURL = await uploadMenuImage(file, menuId, (progress) => {
-        setProgress(progress);
-      });
-      
+      let downloadURL = '';
+
+      if (onUpload) {
+        // 커스텀 업로드 함수 사용
+        downloadURL = await onUpload(file, (p) => setProgress(p));
+      } else if (menuId) {
+        // 기존 메뉴 이미지 업로드 (하위 호환)
+        downloadURL = await uploadMenuImage(file, menuId, (p) => setProgress(p));
+      } else {
+        throw new Error('Upload handler is missing');
+      }
+
       onImageUploaded(downloadURL);
       toast.success('이미지가 업로드되었습니다');
     } catch (error) {
       console.error('이미지 업로드 실패:', error);
       toast.error('이미지 업로드에 실패했습니다');
-      setPreviewUrl(currentImageUrl);
+      setPreviewUrl(currentImageUrl || defaultImage);
     } finally {
       setUploading(false);
       setProgress(0);
@@ -63,13 +94,15 @@ export default function ImageUpload({ menuId, currentImageUrl, onImageUploaded }
 
   return (
     <div>
-      <label className="block text-sm font-medium text-gray-700 mb-2">
-        메뉴 이미지
-      </label>
-      
-      <div className="relative">
+      {label && (
+        <label className="block text-sm font-medium text-gray-700 mb-2">
+          {label}
+        </label>
+      )}
+
+      <div className="relative w-full">
         {previewUrl ? (
-          <div className="relative aspect-[4/3] rounded-lg overflow-hidden bg-gray-100 border-2 border-gray-200">
+          <div className={`relative overflow-hidden bg-gray-100 border-2 border-gray-200 ${getAspectRatioClass()}`}>
             <img
               src={previewUrl}
               alt="미리보기"
@@ -85,22 +118,24 @@ export default function ImageUpload({ menuId, currentImageUrl, onImageUploaded }
             )}
             {!uploading && (
               <button
+                type="button"
                 onClick={handleRemoveImage}
-                className="absolute top-2 right-2 p-2 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors"
+                className="absolute top-2 right-2 p-2 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors shadow-md transform hover:scale-105"
               >
-                <X className="w-5 h-5" />
+                <X className="w-4 h-4" />
               </button>
             )}
           </div>
         ) : (
           <button
+            type="button"
             onClick={() => fileInputRef.current?.click()}
             disabled={uploading}
-            className="w-full aspect-[4/3] border-2 border-dashed border-gray-300 rounded-lg hover:border-blue-500 transition-colors flex flex-col items-center justify-center text-gray-500 hover:text-blue-600"
+            className={`w-full border-2 border-dashed border-gray-300 hover:border-blue-500 transition-colors flex flex-col items-center justify-center text-gray-500 hover:text-blue-600 bg-gray-50 hover:bg-blue-50 ${getAspectRatioClass()}`}
           >
-            <ImageIcon className="w-12 h-12 mb-2" />
+            <ImageIcon className="w-10 h-10 mb-2 opacity-50" />
             <p className="text-sm font-medium">이미지 업로드</p>
-            <p className="text-xs mt-1">JPG, PNG, WebP (최대 5MB)</p>
+            <p className="text-xs mt-1 text-gray-400">JPG, PNG, WebP (최대 5MB)</p>
           </button>
         )}
       </div>
