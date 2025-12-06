@@ -68,6 +68,7 @@ export async function toggleMenuSoldout(menuId: string, soldout: boolean) {
 }
 
 // Query 헬퍼 함수들
+// NOTE: This export is required for AdminMenuManagement
 export function getAllMenusQuery() {
   return query(
     collection(db, COLLECTION_NAME),

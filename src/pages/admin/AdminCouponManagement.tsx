@@ -10,20 +10,7 @@ import Badge from '../../components/common/Badge';
 import { useStore } from '../../contexts/StoreContext';
 import { useFirestoreCollection } from '../../hooks/useFirestoreCollection';
 import { createCoupon, updateCoupon, deleteCoupon, toggleCouponActive, getAllCouponsQuery } from '../../services/couponService';
-// mockUsers는 우선 주석 처리하거나 dummy 데이터 사용 필요 (UserType 정의 없음)
-// 여기서는 UserType을 간단히 정의하고 mockUsers 대신 빈 배열 사용
-interface UserType {
-  id: string;
-  name: string;
-  phone: string;
-}
-const mockUsers: UserType[] = [
-  { id: 'user1', name: '김철수', phone: '010-1234-5678' },
-  { id: 'user2', name: '이영희', phone: '010-9876-5432' },
-  { id: 'user3', name: '박민수', phone: '010-5555-4444' },
-  { id: 'user4', name: '정수진', phone: '010-3333-2222' },
-  { id: 'user5', name: '홍길동', phone: '010-1111-9999' },
-];
+import { searchUsers, UserProfile } from '../../services/userService';
 
 export default function AdminCouponManagement() {
   const { store } = useStore();
@@ -293,21 +280,44 @@ function CouponFormModal({ coupon, onSave, onClose }: CouponFormModalProps) {
 
   const [customNameMode, setCustomNameMode] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedUser, setSelectedUser] = useState<UserType | null>(
-    coupon?.assignedUserId
-      ? mockUsers.find(u => u.id === coupon.assignedUserId) || null
+  const [searchResults, setSearchResults] = useState<UserProfile[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<UserProfile | null>(
+    coupon?.assignedUserId && coupon.assignedUserName
+      ? {
+        id: coupon.assignedUserId,
+        name: coupon.assignedUserName,
+        phone: coupon.assignedUserPhone || '',
+        email: '',
+        createdAt: null
+      }
       : null
   );
 
-  // 회원 검색 (전화번호 또는 이름)
-  const filteredUsers = searchQuery
-    ? mockUsers.filter(user =>
-      user.phone.includes(searchQuery) ||
-      user.name.includes(searchQuery)
-    )
-    : [];
+  // 회원 검색 (Debounce 적용 없이 간단히 Enter 키나 버튼으로 트리거해도 되지만, 여기선 useEffect로 처리)
+  useEffect(() => {
+    const search = async () => {
+      if (!searchQuery.trim()) {
+        setSearchResults([]);
+        return;
+      }
 
-  const handleUserSelect = (user: UserType) => {
+      setIsSearching(true);
+      try {
+        const results = await searchUsers(searchQuery);
+        setSearchResults(results);
+      } catch (error) {
+        console.error('Search failed:', error);
+      } finally {
+        setIsSearching(false);
+      }
+    };
+
+    const timer = setTimeout(search, 500);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  const handleUserSelect = (user: UserProfile) => {
     setSelectedUser(user);
     setFormData({
       ...formData,
@@ -316,6 +326,7 @@ function CouponFormModal({ coupon, onSave, onClose }: CouponFormModalProps) {
       assignedUserPhone: user.phone,
     });
     setSearchQuery('');
+    setSearchResults([]);
   };
 
   const handleUserRemove = () => {
@@ -521,9 +532,13 @@ function CouponFormModal({ coupon, onSave, onClose }: CouponFormModalProps) {
                 {/* 검색 결과 */}
                 {searchQuery && (
                   <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
-                    {filteredUsers.length > 0 ? (
+                    {isSearching ? (
+                      <div className="p-4 text-center text-gray-500 text-sm">
+                        검색 중...
+                      </div>
+                    ) : searchResults.length > 0 ? (
                       <ul>
-                        {filteredUsers.map(user => (
+                        {searchResults.map(user => (
                           <li key={user.id}>
                             <button
                               type="button"
