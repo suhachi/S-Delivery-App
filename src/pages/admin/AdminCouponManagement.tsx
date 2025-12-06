@@ -17,7 +17,13 @@ interface UserType {
   name: string;
   phone: string;
 }
-const mockUsers: UserType[] = [];
+const mockUsers: UserType[] = [
+  { id: 'user1', name: '김철수', phone: '010-1234-5678' },
+  { id: 'user2', name: '이영희', phone: '010-9876-5432' },
+  { id: 'user3', name: '박민수', phone: '010-5555-4444' },
+  { id: 'user4', name: '정수진', phone: '010-3333-2222' },
+  { id: 'user5', name: '홍길동', phone: '010-1111-9999' },
+];
 
 export default function AdminCouponManagement() {
   const { store } = useStore();
@@ -218,8 +224,8 @@ function CouponCard({ coupon, onEdit, onDelete, onToggleActive }: CouponCardProp
             {/* 사용 상태 */}
             <div className="flex items-center gap-2">
               <div className={`px-3 py-1 rounded-full text-sm font-medium ${coupon.isUsed
-                  ? 'bg-gray-100 text-gray-600'
-                  : 'bg-green-100 text-green-700'
+                ? 'bg-gray-100 text-gray-600'
+                : 'bg-green-100 text-green-700'
                 }`}>
                 {coupon.isUsed ? '1회 사용 완료' : '사용 가능 (1회)'}
               </div>
@@ -473,6 +479,72 @@ function CouponFormModal({ coupon, onSave, onClose }: CouponFormModalProps) {
             <p className="text-xs text-gray-500 mt-1">
               쿠폰명을 선택하면 자동으로 생성됩니다
             </p>
+          </div>
+
+          {/* 발급 대상 지정 */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              발급 대상 (선택)
+            </label>
+
+            {selectedUser ? (
+              <div className="flex items-center justify-between p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center text-blue-600">
+                    <User className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <p className="font-medium text-gray-900">{selectedUser.name}</p>
+                    <p className="text-sm text-gray-600">{selectedUser.phone}</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleUserRemove}
+                  className="p-2 hover:bg-white rounded-full transition-colors text-gray-500 hover:text-red-500"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            ) : (
+              <div className="relative">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <Input
+                    placeholder="이름 또는 전화번호로 회원 검색"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-9"
+                  />
+                </div>
+
+                {/* 검색 결과 */}
+                {searchQuery && (
+                  <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                    {filteredUsers.length > 0 ? (
+                      <ul>
+                        {filteredUsers.map(user => (
+                          <li key={user.id}>
+                            <button
+                              type="button"
+                              onClick={() => handleUserSelect(user)}
+                              className="w-full px-4 py-3 text-left hover:bg-gray-50 transition-colors border-b border-gray-100 last:border-0"
+                            >
+                              <p className="font-medium text-gray-900">{user.name}</p>
+                              <p className="text-sm text-gray-600">{user.phone}</p>
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <div className="p-4 text-center text-gray-500 text-sm">
+                        검색 결과가 없습니다
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           <div>

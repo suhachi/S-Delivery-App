@@ -7,6 +7,7 @@ import Card from '../../components/common/Card';
 import Button from '../../components/common/Button';
 import Input from '../../components/common/Input';
 import Badge from '../../components/common/Badge';
+import ImageUpload from '../../components/common/ImageUpload';
 import { useStore } from '../../contexts/StoreContext';
 import { useFirestoreCollection } from '../../hooks/useFirestoreCollection';
 import { createMenu, updateMenu, deleteMenu, toggleMenuSoldout, getAllMenusQuery } from '../../services/menuService';
@@ -341,12 +342,13 @@ function MenuFormModal({ menu, onSave, onClose }: MenuFormModalProps) {
             />
           </div>
 
-          <Input
-            label="이미지 URL (선택)"
-            value={formData.imageUrl}
-            onChange={(e) => setFormData({ ...formData, imageUrl: e.target.value })}
-            placeholder="https://example.com/image.jpg"
-          />
+          <div className="mb-4">
+            <ImageUpload
+              menuId={menu ? menu.id : 'new'}
+              currentImageUrl={formData.imageUrl}
+              onImageUploaded={(url) => setFormData({ ...formData, imageUrl: url })}
+            />
+          </div>
 
           <div className="border-t border-gray-200 pt-5 mt-5">
             <label className="block text-sm font-medium text-gray-700 mb-3">

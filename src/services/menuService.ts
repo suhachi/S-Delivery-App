@@ -68,7 +68,7 @@ export async function toggleMenuSoldout(menuId: string, soldout: boolean) {
 }
 
 // Query 헬퍼 함수들
-export function getMenusQuery() {
+export function getAllMenusQuery() {
   return query(
     collection(db, COLLECTION_NAME),
     orderBy('createdAt', 'desc')
