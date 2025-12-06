@@ -17,8 +17,10 @@ import ImageUpload from '../../components/common/ImageUpload';
 export default function AdminEventManagement() {
   const { store } = useStore();
   const { data: events, loading } = useFirestoreCollection<Event>(
-    getAllEventsQuery()
+    store?.id ? getAllEventsQuery(store.id) : null
   );
+
+  if (!store || !store.id) return null;
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingEvent, setEditingEvent] = useState<Event | null>(null);
@@ -36,7 +38,7 @@ export default function AdminEventManagement() {
   const handleDeleteEvent = async (eventId: string) => {
     if (window.confirm('정말 삭제하시겠습니까?')) {
       try {
-        await deleteEvent(eventId);
+        await deleteEvent(store.id, eventId);
         toast.success('이벤트가 삭제되었습니다');
       } catch (error) {
         toast.error('이벤트 삭제에 실패했습니다');
@@ -46,7 +48,7 @@ export default function AdminEventManagement() {
 
   const handleToggleActive = async (eventId: string, currentActive: boolean) => {
     try {
-      await toggleEventActive(eventId, !currentActive);
+      await toggleEventActive(store.id, eventId, !currentActive);
       toast.success('활성화 상태가 변경되었습니다');
     } catch (error) {
       toast.error('활성화 상태 변경에 실패했습니다');
@@ -56,10 +58,10 @@ export default function AdminEventManagement() {
   const handleSaveEvent = async (eventData: Omit<Event, 'id' | 'createdAt' | 'updatedAt'>) => {
     try {
       if (editingEvent) {
-        await updateEvent(editingEvent.id, eventData);
+        await updateEvent(store.id, editingEvent.id, eventData);
         toast.success('이벤트가 수정되었습니다');
       } else {
-        await createEvent(eventData);
+        await createEvent(store.id, eventData);
         toast.success('이벤트가 추가되었습니다');
       }
       setIsModalOpen(false);
@@ -125,7 +127,7 @@ export default function AdminEventManagement() {
                 {/* Content */}
                 <div className="p-4">
                   <div className="flex items-center gap-2 mb-2">
-                    <Badge variant={event.active ? 'success' : 'default'} size="sm">
+                    <Badge variant={event.active ? 'success' : 'gray'} size="sm">
                       {event.active ? '활성' : '비활성'}
                     </Badge>
                     <h3 className="font-semibold text-gray-900 line-clamp-1">

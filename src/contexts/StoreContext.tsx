@@ -28,8 +28,8 @@ export function StoreProvider({ children }: StoreProviderProps) {
   const [error, setError] = useState<Error | null>(null);
 
   useEffect(() => {
-    // 단일 상점 문서 'store/default' 구독
-    const storeRef = doc(db, 'store', 'default');
+    // 단일 상점 문서 'stores/default' 구독
+    const storeRef = doc(db, 'stores', 'default');
 
     const unsubscribe = onSnapshot(storeRef,
       (snapshot) => {

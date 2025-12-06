@@ -13,12 +13,13 @@ import {
 import { db } from '../lib/firebase';
 import { Coupon } from '../types/coupon';
 
-const COLLECTION_NAME = 'coupons';
+// 컬렉션 참조 헬퍼 (stores/{storeId}/coupons)
+const getCouponCollection = (storeId: string) => collection(db, 'stores', storeId, 'coupons');
 
 // 쿠폰 생성
-export async function createCoupon(couponData: Omit<Coupon, 'id' | 'createdAt' | 'usedCount'>) {
+export async function createCoupon(storeId: string, couponData: Omit<Coupon, 'id' | 'createdAt' | 'usedCount'>) {
   try {
-    const docRef = await addDoc(collection(db, COLLECTION_NAME), {
+    const docRef = await addDoc(getCouponCollection(storeId), {
       ...couponData,
       usedCount: 0,
       createdAt: serverTimestamp(),
@@ -31,9 +32,9 @@ export async function createCoupon(couponData: Omit<Coupon, 'id' | 'createdAt' |
 }
 
 // 쿠폰 수정
-export async function updateCoupon(couponId: string, couponData: Partial<Coupon>) {
+export async function updateCoupon(storeId: string, couponId: string, couponData: Partial<Coupon>) {
   try {
-    const couponRef = doc(db, COLLECTION_NAME, couponId);
+    const couponRef = doc(db, 'stores', storeId, 'coupons', couponId);
     await updateDoc(couponRef, {
       ...couponData,
       updatedAt: serverTimestamp(),
@@ -45,9 +46,9 @@ export async function updateCoupon(couponId: string, couponData: Partial<Coupon>
 }
 
 // 쿠폰 삭제
-export async function deleteCoupon(couponId: string) {
+export async function deleteCoupon(storeId: string, couponId: string) {
   try {
-    const couponRef = doc(db, COLLECTION_NAME, couponId);
+    const couponRef = doc(db, 'stores', storeId, 'coupons', couponId);
     await deleteDoc(couponRef);
   } catch (error) {
     console.error('쿠폰 삭제 실패:', error);
@@ -56,9 +57,9 @@ export async function deleteCoupon(couponId: string) {
 }
 
 // 쿠폰 활성화/비활성화
-export async function toggleCouponActive(couponId: string, isActive: boolean) {
+export async function toggleCouponActive(storeId: string, couponId: string, isActive: boolean) {
   try {
-    const couponRef = doc(db, COLLECTION_NAME, couponId);
+    const couponRef = doc(db, 'stores', storeId, 'coupons', couponId);
     await updateDoc(couponRef, {
       isActive,
       updatedAt: serverTimestamp(),
@@ -70,9 +71,9 @@ export async function toggleCouponActive(couponId: string, isActive: boolean) {
 }
 
 // 쿠폰 사용
-export async function useCoupon(couponId: string) {
+export async function useCoupon(storeId: string, couponId: string) {
   try {
-    const couponRef = doc(db, COLLECTION_NAME, couponId);
+    const couponRef = doc(db, 'stores', storeId, 'coupons', couponId);
     await updateDoc(couponRef, {
       usedCount: increment(1),
     });
@@ -83,16 +84,16 @@ export async function useCoupon(couponId: string) {
 }
 
 // Query 헬퍼 함수들
-export function getAllCouponsQuery() {
+export function getAllCouponsQuery(storeId: string) {
   return query(
-    collection(db, COLLECTION_NAME),
+    getCouponCollection(storeId),
     orderBy('createdAt', 'desc')
   );
 }
 
-export function getActiveCouponsQuery() {
+export function getActiveCouponsQuery(storeId: string) {
   return query(
-    collection(db, COLLECTION_NAME),
+    getCouponCollection(storeId),
     where('isActive', '==', true),
     orderBy('createdAt', 'desc')
   );

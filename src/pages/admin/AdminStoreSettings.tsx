@@ -63,7 +63,7 @@ export default function AdminStoreSettings() {
     setSaving(true);
 
     try {
-      const storeRef = doc(db, 'store', 'default');
+      const storeRef = doc(db, 'stores', 'default');
       await updateDoc(storeRef, {
         ...formData,
         updatedAt: serverTimestamp(),
@@ -236,7 +236,7 @@ export default function AdminStoreSettings() {
                     setFormData(prev => ({ ...prev, logoUrl: url }));
                     // Auto-save logic
                     try {
-                      await updateDoc(doc(db, 'store', 'default'), { logoUrl: url });
+                      await updateDoc(doc(db, 'stores', 'default'), { logoUrl: url });
                       toast.success('상점 로고가 저장되었습니다');
                     } catch (error) {
                       console.error('Failed to auto-save logo:', error);
@@ -255,7 +255,7 @@ export default function AdminStoreSettings() {
                     setFormData(prev => ({ ...prev, bannerUrl: url }));
                     // Auto-save logic
                     try {
-                      await updateDoc(doc(db, 'store', 'default'), { bannerUrl: url });
+                      await updateDoc(doc(db, 'stores', 'default'), { bannerUrl: url });
                       toast.success('배너 이미지가 저장되었습니다');
                     } catch (error) {
                       console.error('Failed to auto-save banner:', error);

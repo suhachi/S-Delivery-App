@@ -15,17 +15,27 @@ import { createMenu, updateMenu, deleteMenu, toggleMenuSoldout, getAllMenusQuery
 export default function AdminMenuManagement() {
   const { store, loading: storeLoading } = useStore();
 
-  // storeId 없이 쿼리 호출
-  const { data: menus, loading } = useFirestoreCollection<Menu>(
-    getAllMenusQuery()
+  // storeId가 있을 때만 쿼리 생성
+  if (store) console.log('Current Store ID:', store.id);
+  const { data: menus, loading, error } = useFirestoreCollection<Menu>(
+    store?.id ? getAllMenusQuery(store.id) : null
   );
+
+  if (storeLoading) return null;
+  if (!store || !store.id) return <StoreNotFound />;
+
+  if (error) {
+    toast.error(`데이터 로드 실패: ${error.message}`);
+    console.error(error);
+  }
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingMenu, setEditingMenu] = useState<Menu | null>(null);
 
   if (storeLoading) return null;
 
-  if (!store) {
+
+  function StoreNotFound() {
     return (
       <div className="flex min-h-screen bg-gray-50">
         <AdminSidebar />
@@ -53,7 +63,7 @@ export default function AdminMenuManagement() {
   const handleDeleteMenu = async (menuId: string) => {
     if (window.confirm('정말 삭제하시겠습니까?')) {
       try {
-        await deleteMenu(menuId);
+        await deleteMenu(store.id, menuId);
         toast.success('메뉴가 삭제되었습니다');
       } catch (error) {
         toast.error('메뉴 삭제에 실패했습니다');
@@ -63,7 +73,7 @@ export default function AdminMenuManagement() {
 
   const handleToggleSoldout = async (menuId: string, currentSoldout: boolean) => {
     try {
-      await toggleMenuSoldout(menuId, !currentSoldout);
+      await toggleMenuSoldout(store.id, menuId, !currentSoldout);
       toast.success('품절 상태가 변경되었습니다');
     } catch (error) {
       toast.error('품절 상태 변경에 실패했습니다');
@@ -73,10 +83,10 @@ export default function AdminMenuManagement() {
   const handleSaveMenu = async (menuData: Omit<Menu, 'id' | 'createdAt'>) => {
     try {
       if (editingMenu) {
-        await updateMenu(editingMenu.id, menuData);
+        await updateMenu(store.id, editingMenu.id, menuData);
         toast.success('메뉴가 수정되었습니다');
       } else {
-        await createMenu(menuData);
+        await createMenu(store.id, menuData);
         toast.success('메뉴가 추가되었습니다');
       }
       setIsModalOpen(false);

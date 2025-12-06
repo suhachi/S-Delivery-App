@@ -13,16 +13,17 @@ import {
 import { db } from '../lib/firebase';
 import { Event } from '../types/event';
 
-const COLLECTION_NAME = 'events';
+const getEventCollection = (storeId: string) => collection(db, 'stores', storeId, 'events');
 
 /**
  * 이벤트 생성
  */
 export async function createEvent(
+  storeId: string,
   eventData: Omit<Event, 'id' | 'createdAt'>
 ): Promise<string> {
   try {
-    const docRef = await addDoc(collection(db, COLLECTION_NAME), {
+    const docRef = await addDoc(getEventCollection(storeId), {
       title: eventData.title,
       imageUrl: eventData.imageUrl,
       link: eventData.link,
@@ -42,11 +43,12 @@ export async function createEvent(
  * 이벤트 수정
  */
 export async function updateEvent(
+  storeId: string,
   eventId: string,
   eventData: Partial<Omit<Event, 'id' | 'createdAt'>>
 ): Promise<void> {
   try {
-    const eventRef = doc(db, COLLECTION_NAME, eventId);
+    const eventRef = doc(db, 'stores', storeId, 'events', eventId);
     const updateData: any = {};
 
     if (eventData.title !== undefined) updateData.title = eventData.title;
@@ -71,10 +73,11 @@ export async function updateEvent(
  * 이벤트 삭제
  */
 export async function deleteEvent(
+  storeId: string,
   eventId: string
 ): Promise<void> {
   try {
-    const eventRef = doc(db, COLLECTION_NAME, eventId);
+    const eventRef = doc(db, 'stores', storeId, 'events', eventId);
     await deleteDoc(eventRef);
   } catch (error) {
     console.error('이벤트 삭제 실패:', error);
@@ -86,11 +89,12 @@ export async function deleteEvent(
  * 이벤트 활성화 토글
  */
 export async function toggleEventActive(
+  storeId: string,
   eventId: string,
   active: boolean
 ): Promise<void> {
   try {
-    const eventRef = doc(db, COLLECTION_NAME, eventId);
+    const eventRef = doc(db, 'stores', storeId, 'events', eventId);
     await updateDoc(eventRef, { active });
   } catch (error) {
     console.error('이벤트 활성화 상태 변경 실패:', error);
@@ -101,9 +105,9 @@ export async function toggleEventActive(
 /**
  * 모든 이벤트 쿼리 (생성일 내림차순)
  */
-export function getAllEventsQuery() {
+export function getAllEventsQuery(storeId: string) {
   return query(
-    collection(db, COLLECTION_NAME),
+    getEventCollection(storeId),
     orderBy('createdAt', 'desc')
   );
 }
@@ -111,9 +115,9 @@ export function getAllEventsQuery() {
 /**
  * 활성화된 이벤트만 조회
  */
-export function getActiveEventsQuery() {
+export function getActiveEventsQuery(storeId: string) {
   return query(
-    collection(db, COLLECTION_NAME),
+    getEventCollection(storeId),
     where('active', '==', true),
     orderBy('startDate', 'asc')
   );

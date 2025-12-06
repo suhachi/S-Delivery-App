@@ -15,8 +15,10 @@ import { searchUsers, UserProfile } from '../../services/userService';
 export default function AdminCouponManagement() {
   const { store } = useStore();
   const { data: coupons, loading } = useFirestoreCollection<Coupon>(
-    getAllCouponsQuery()
+    store?.id ? getAllCouponsQuery(store.id) : null
   );
+
+  if (!store || !store.id) return null;
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingCoupon, setEditingCoupon] = useState<Coupon | null>(null);
 

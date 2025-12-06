@@ -119,8 +119,8 @@ export default function StoreSetupWizard() {
         updatedAt: serverTimestamp(),
       };
 
-      // 루트 컬렉션 'store'의 'default' 문서로 저장
-      await setDoc(doc(db, 'store', 'default'), storeData);
+      // 루트 컬렉션 'stores'의 'default' 문서로 저장
+      await setDoc(doc(db, 'stores', 'default'), storeData);
 
       toast.success('상점이 생성되었습니다! 🎉');
 
