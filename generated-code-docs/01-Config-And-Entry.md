@@ -1,12 +1,13 @@
 ﻿# 01-Config-And-Entry
 
-Generated: 2025-12-07 01:31:20
+Generated: 2025-12-08 18:05:20
 
 ---
 
 ## File: src\App.tsx
 
 ```typescript
+import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'sonner';
 import WelcomePage from './pages/WelcomePage';
@@ -36,7 +37,7 @@ import './styles/globals.css';
 // Protected Route Component
 function RequireAuth({ children, requireAdmin = false }: { children: React.ReactNode; requireAdmin?: boolean }) {
   const { user, isAdmin, loading } = useAuth();
-  
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -44,22 +45,37 @@ function RequireAuth({ children, requireAdmin = false }: { children: React.React
       </div>
     );
   }
-  
+
   if (!user) {
     return <Navigate to="/login" replace />;
   }
-  
+
   if (requireAdmin && !isAdmin) {
     return <Navigate to="/" replace />;
   }
-  
+
   return <>{children}</>;
 }
 
 function AppContent() {
   const { user, loading: authLoading } = useAuth();
-  const { loading: storeLoading } = useStore();
-  
+  const { store, loading: storeLoading } = useStore();
+
+  // 테마 색상 적용
+  React.useEffect(() => {
+    if (store?.primaryColor) {
+      const root = document.documentElement;
+      const primary = store.primaryColor;
+
+      // 메인 색상 적용
+      root.style.setProperty('--color-primary-500', primary);
+
+      // 그라데이션 등을 위한 파생 색상 생성 (간단히 조금 더 어두운 색상으로 설정)
+      // 실제로는 더 정교한 색상 팔레트 생성 로직이 필요할 수 있음
+      root.style.setProperty('--color-primary-600', adjustBrightness(primary, -10));
+    }
+  }, [store?.primaryColor]);
+
   // 디버깅: 로딩 상태 확인
   if (authLoading || storeLoading) {
     return (
@@ -67,15 +83,11 @@ function AppContent() {
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
           <p className="mt-4 text-gray-600">로딩 중...</p>
-          <p className="mt-2 text-sm text-gray-400">
-            {authLoading && '인증 확인 중...'}
-            {storeLoading && '상점 정보 로딩 중...'}
-          </p>
         </div>
       </div>
     );
   }
-  
+
   return (
     <CartProvider>
       <div className="min-h-screen bg-gray-50">
@@ -90,7 +102,7 @@ function AppContent() {
           <Route path="/orders/:orderId" element={<RequireAuth><OrderDetailPage /></RequireAuth>} />
           <Route path="/checkout" element={<RequireAuth><CheckoutPage /></RequireAuth>} />
           <Route path="/mypage" element={<RequireAuth><MyPage /></RequireAuth>} />
-          
+
           {/* Admin Routes */}
           <Route path="/admin" element={<RequireAuth requireAdmin><AdminDashboard /></RequireAuth>} />
           <Route path="/admin/menus" element={<RequireAuth requireAdmin><AdminMenuManagement /></RequireAuth>} />
@@ -100,7 +112,7 @@ function AppContent() {
           <Route path="/admin/notices" element={<RequireAuth requireAdmin><AdminNoticeManagement /></RequireAuth>} />
           <Route path="/admin/events" element={<RequireAuth requireAdmin><AdminEventManagement /></RequireAuth>} />
           <Route path="/admin/store-settings" element={<RequireAuth requireAdmin><AdminStoreSettings /></RequireAuth>} />
-          
+
           {/* Store Setup */}
           <Route path="/store-setup" element={<RequireAuth requireAdmin><StoreSetupWizard /></RequireAuth>} />
         </Routes>
@@ -108,6 +120,16 @@ function AppContent() {
       <Toaster position="top-center" richColors />
     </CartProvider>
   );
+}
+
+// 색상 밝기 조절 유틸리티
+function adjustBrightness(hex: string, percent: number) {
+  const num = parseInt(hex.replace('#', ''), 16);
+  const amt = Math.round(2.55 * percent);
+  const R = (num >> 16) + amt;
+  const G = (num >> 8 & 0x00FF) + amt;
+  const B = (num & 0x0000FF) + amt;
+  return '#' + (0x1000000 + (R < 255 ? R < 1 ? 0 : R : 255) * 0x10000 + (G < 255 ? G < 1 ? 0 : G : 255) * 0x100 + (B < 255 ? B < 1 ? 0 : B : 255)).toString(16).slice(1);
 }
 
 export default function App() {
@@ -3652,17 +3674,7 @@ select:focus {
   import App from "./App.tsx";
   import "./index.css";
 
-  console.log('🚀 App starting...');
-  const rootElement = document.getElementById("root");
-  
-  if (!rootElement) {
-    console.error('❌ Root element not found!');
-    throw new Error('Root element not found');
-  }
-  
-  console.log('✅ Root element found');
-  createRoot(rootElement).render(<App />);
-  console.log('✅ App rendered');
+  createRoot(document.getElementById("root")!).render(<App />);
   
 ```
 

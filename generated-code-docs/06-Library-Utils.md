@@ -1,6 +1,6 @@
 ﻿# 06-Library-Utils
 
-Generated: 2025-12-07 01:31:21
+Generated: 2025-12-08 18:05:20
 
 ---
 
@@ -83,15 +83,6 @@ const firebaseConfig = {
 
 // Firebase 초기화
 const app = initializeApp(firebaseConfig);
-
-// 디버깅: Firebase 설정 확인
-if (import.meta.env.DEV) {
-  console.log('Firebase Config:', {
-    projectId: firebaseConfig.projectId,
-    authDomain: firebaseConfig.authDomain,
-    hasApiKey: !!firebaseConfig.apiKey && firebaseConfig.apiKey !== 'demo-api-key'
-  });
-}
 
 // Firebase 서비스 초기화
 export const auth = getAuth(app);

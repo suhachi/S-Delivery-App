@@ -1,6 +1,6 @@
 ﻿# 08-Page-Admin
 
-Generated: 2025-12-07 01:31:21
+Generated: 2025-12-08 18:05:20
 
 ---
 
@@ -19,20 +19,15 @@ import Badge from '../../components/common/Badge';
 import { useStore } from '../../contexts/StoreContext';
 import { useFirestoreCollection } from '../../hooks/useFirestoreCollection';
 import { createCoupon, updateCoupon, deleteCoupon, toggleCouponActive, getAllCouponsQuery } from '../../services/couponService';
-// mockUsers는 우선 주석 처리하거나 dummy 데이터 사용 필요 (UserType 정의 없음)
-// 여기서는 UserType을 간단히 정의하고 mockUsers 대신 빈 배열 사용
-interface UserType {
-  id: string;
-  name: string;
-  phone: string;
-}
-const mockUsers: UserType[] = [];
+import { searchUsers, UserProfile } from '../../services/userService';
 
 export default function AdminCouponManagement() {
   const { store } = useStore();
   const { data: coupons, loading } = useFirestoreCollection<Coupon>(
-    getAllCouponsQuery()
+    store?.id ? getAllCouponsQuery(store.id) : null
   );
+
+  if (!store || !store.id) return null;
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingCoupon, setEditingCoupon] = useState<Coupon | null>(null);
 
@@ -227,8 +222,8 @@ function CouponCard({ coupon, onEdit, onDelete, onToggleActive }: CouponCardProp
             {/* 사용 상태 */}
             <div className="flex items-center gap-2">
               <div className={`px-3 py-1 rounded-full text-sm font-medium ${coupon.isUsed
-                  ? 'bg-gray-100 text-gray-600'
-                  : 'bg-green-100 text-green-700'
+                ? 'bg-gray-100 text-gray-600'
+                : 'bg-green-100 text-green-700'
                 }`}>
                 {coupon.isUsed ? '1회 사용 완료' : '사용 가능 (1회)'}
               </div>
@@ -296,21 +291,44 @@ function CouponFormModal({ coupon, onSave, onClose }: CouponFormModalProps) {
 
   const [customNameMode, setCustomNameMode] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedUser, setSelectedUser] = useState<UserType | null>(
-    coupon?.assignedUserId
-      ? mockUsers.find(u => u.id === coupon.assignedUserId) || null
+  const [searchResults, setSearchResults] = useState<UserProfile[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<UserProfile | null>(
+    coupon?.assignedUserId && coupon.assignedUserName
+      ? {
+        id: coupon.assignedUserId,
+        name: coupon.assignedUserName,
+        phone: coupon.assignedUserPhone || '',
+        email: '',
+        createdAt: null
+      }
       : null
   );
 
-  // 회원 검색 (전화번호 또는 이름)
-  const filteredUsers = searchQuery
-    ? mockUsers.filter(user =>
-      user.phone.includes(searchQuery) ||
-      user.name.includes(searchQuery)
-    )
-    : [];
+  // 회원 검색 (Debounce 적용 없이 간단히 Enter 키나 버튼으로 트리거해도 되지만, 여기선 useEffect로 처리)
+  useEffect(() => {
+    const search = async () => {
+      if (!searchQuery.trim()) {
+        setSearchResults([]);
+        return;
+      }
 
-  const handleUserSelect = (user: UserType) => {
+      setIsSearching(true);
+      try {
+        const results = await searchUsers(searchQuery);
+        setSearchResults(results);
+      } catch (error) {
+        console.error('Search failed:', error);
+      } finally {
+        setIsSearching(false);
+      }
+    };
+
+    const timer = setTimeout(search, 500);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  const handleUserSelect = (user: UserProfile) => {
     setSelectedUser(user);
     setFormData({
       ...formData,
@@ -319,6 +337,7 @@ function CouponFormModal({ coupon, onSave, onClose }: CouponFormModalProps) {
       assignedUserPhone: user.phone,
     });
     setSearchQuery('');
+    setSearchResults([]);
   };
 
   const handleUserRemove = () => {
@@ -482,6 +501,76 @@ function CouponFormModal({ coupon, onSave, onClose }: CouponFormModalProps) {
             <p className="text-xs text-gray-500 mt-1">
               쿠폰명을 선택하면 자동으로 생성됩니다
             </p>
+          </div>
+
+          {/* 발급 대상 지정 */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              발급 대상 (선택)
+            </label>
+
+            {selectedUser ? (
+              <div className="flex items-center justify-between p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center text-blue-600">
+                    <User className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <p className="font-medium text-gray-900">{selectedUser.name}</p>
+                    <p className="text-sm text-gray-600">{selectedUser.phone}</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleUserRemove}
+                  className="p-2 hover:bg-white rounded-full transition-colors text-gray-500 hover:text-red-500"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            ) : (
+              <div className="relative">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <Input
+                    placeholder="이름 또는 전화번호로 회원 검색"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-9"
+                  />
+                </div>
+
+                {/* 검색 결과 */}
+                {searchQuery && (
+                  <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                    {isSearching ? (
+                      <div className="p-4 text-center text-gray-500 text-sm">
+                        검색 중...
+                      </div>
+                    ) : searchResults.length > 0 ? (
+                      <ul>
+                        {searchResults.map(user => (
+                          <li key={user.id}>
+                            <button
+                              type="button"
+                              onClick={() => handleUserSelect(user)}
+                              className="w-full px-4 py-3 text-left hover:bg-gray-50 transition-colors border-b border-gray-100 last:border-0"
+                            >
+                              <p className="font-medium text-gray-900">{user.name}</p>
+                              <p className="text-sm text-gray-600">{user.phone}</p>
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <div className="p-4 text-center text-gray-500 text-sm">
+                        검색 결과가 없습니다
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           <div>
@@ -820,12 +909,16 @@ import { formatDateShort } from '../../utils/formatDate';
 import { useStore } from '../../contexts/StoreContext';
 import { useFirestoreCollection } from '../../hooks/useFirestoreCollection';
 import { createEvent, updateEvent, deleteEvent, toggleEventActive, getAllEventsQuery } from '../../services/eventService';
+import { uploadEventImage } from '../../services/storageService';
+import ImageUpload from '../../components/common/ImageUpload';
 
 export default function AdminEventManagement() {
   const { store } = useStore();
   const { data: events, loading } = useFirestoreCollection<Event>(
-    getAllEventsQuery()
+    store?.id ? getAllEventsQuery(store.id) : null
   );
+
+  if (!store || !store.id) return null;
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingEvent, setEditingEvent] = useState<Event | null>(null);
@@ -843,7 +936,7 @@ export default function AdminEventManagement() {
   const handleDeleteEvent = async (eventId: string) => {
     if (window.confirm('정말 삭제하시겠습니까?')) {
       try {
-        await deleteEvent(eventId);
+        await deleteEvent(store.id, eventId);
         toast.success('이벤트가 삭제되었습니다');
       } catch (error) {
         toast.error('이벤트 삭제에 실패했습니다');
@@ -853,7 +946,7 @@ export default function AdminEventManagement() {
 
   const handleToggleActive = async (eventId: string, currentActive: boolean) => {
     try {
-      await toggleEventActive(eventId, !currentActive);
+      await toggleEventActive(store.id, eventId, !currentActive);
       toast.success('활성화 상태가 변경되었습니다');
     } catch (error) {
       toast.error('활성화 상태 변경에 실패했습니다');
@@ -863,10 +956,10 @@ export default function AdminEventManagement() {
   const handleSaveEvent = async (eventData: Omit<Event, 'id' | 'createdAt' | 'updatedAt'>) => {
     try {
       if (editingEvent) {
-        await updateEvent(editingEvent.id, eventData);
+        await updateEvent(store.id, editingEvent.id, eventData);
         toast.success('이벤트가 수정되었습니다');
       } else {
-        await createEvent(eventData);
+        await createEvent(store.id, eventData);
         toast.success('이벤트가 추가되었습니다');
       }
       setIsModalOpen(false);
@@ -896,7 +989,7 @@ export default function AdminEventManagement() {
           <div className="mb-8 flex items-center justify-between">
             <div>
               <h1 className="text-3xl mb-2">
-                <span className="bg-gradient-to-r from-blue-600 to-blue-500 bg-clip-text text-transparent">
+                <span className="bg-gradient-to-r from-primary-600 to-primary-500 bg-clip-text text-transparent">
                   이벤트 배너 관리
                 </span>
               </h1>
@@ -932,7 +1025,7 @@ export default function AdminEventManagement() {
                 {/* Content */}
                 <div className="p-4">
                   <div className="flex items-center gap-2 mb-2">
-                    <Badge variant={event.active ? 'success' : 'default'} size="sm">
+                    <Badge variant={event.active ? 'success' : 'gray'} size="sm">
                       {event.active ? '활성' : '비활성'}
                     </Badge>
                     <h3 className="font-semibold text-gray-900 line-clamp-1">
@@ -1064,13 +1157,15 @@ function EventFormModal({ event, onSave, onClose }: EventFormModalProps) {
             required
           />
 
-          <Input
-            label="이미지 URL"
-            value={formData.imageUrl}
-            onChange={(e) => setFormData({ ...formData, imageUrl: e.target.value })}
-            placeholder="https://example.com/banner.jpg"
-            required
-          />
+          <div className="mb-4">
+            <ImageUpload
+              label="이벤트 배너 이미지"
+              currentImageUrl={formData.imageUrl}
+              onImageUploaded={(url) => setFormData({ ...formData, imageUrl: url })}
+              onUpload={(file) => uploadEventImage(file)}
+              aspectRatio="wide"
+            />
+          </div>
 
           <Input
             label="링크 URL (선택)"
@@ -1158,7 +1253,7 @@ function EventFormModal({ event, onSave, onClose }: EventFormModalProps) {
 ## File: src\pages\admin\AdminMenuManagement.tsx
 
 ```typescript
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Plus, Edit2, Trash2, X } from 'lucide-react';
 import { Menu, MenuOption, CATEGORIES } from '../../types/menu';
 import { toast } from 'sonner';
@@ -1167,26 +1262,35 @@ import Card from '../../components/common/Card';
 import Button from '../../components/common/Button';
 import Input from '../../components/common/Input';
 import Badge from '../../components/common/Badge';
+import ImageUpload from '../../components/common/ImageUpload';
 import { useStore } from '../../contexts/StoreContext';
 import { useFirestoreCollection } from '../../hooks/useFirestoreCollection';
-import { createMenu, updateMenu, deleteMenu, toggleMenuSoldout, getMenusQuery } from '../../services/menuService';
-import ImageUpload from '../../components/common/ImageUpload';
-import { uploadMenuImage } from '../../services/storageService';
+import { createMenu, updateMenu, deleteMenu, toggleMenuSoldout, getAllMenusQuery } from '../../services/menuService';
 
 export default function AdminMenuManagement() {
   const { store, loading: storeLoading } = useStore();
 
-  // storeId 없이 쿼리 호출
-  const { data: menus, loading } = useFirestoreCollection<Menu>(
-    getMenusQuery()
+  // storeId가 있을 때만 쿼리 생성
+  if (store) console.log('Current Store ID:', store.id);
+  const { data: menus, loading, error } = useFirestoreCollection<Menu>(
+    store?.id ? getAllMenusQuery(store.id) : null
   );
+
+  if (storeLoading) return null;
+  if (!store || !store.id) return <StoreNotFound />;
+
+  if (error) {
+    toast.error(`데이터 로드 실패: ${error.message}`);
+    console.error(error);
+  }
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingMenu, setEditingMenu] = useState<Menu | null>(null);
 
   if (storeLoading) return null;
 
-  if (!store) {
+
+  function StoreNotFound() {
     return (
       <div className="flex min-h-screen bg-gray-50">
         <AdminSidebar />
@@ -1214,7 +1318,7 @@ export default function AdminMenuManagement() {
   const handleDeleteMenu = async (menuId: string) => {
     if (window.confirm('정말 삭제하시겠습니까?')) {
       try {
-        await deleteMenu(menuId);
+        await deleteMenu(store.id, menuId);
         toast.success('메뉴가 삭제되었습니다');
       } catch (error) {
         toast.error('메뉴 삭제에 실패했습니다');
@@ -1224,7 +1328,7 @@ export default function AdminMenuManagement() {
 
   const handleToggleSoldout = async (menuId: string, currentSoldout: boolean) => {
     try {
-      await toggleMenuSoldout(menuId, !currentSoldout);
+      await toggleMenuSoldout(store.id, menuId, !currentSoldout);
       toast.success('품절 상태가 변경되었습니다');
     } catch (error) {
       toast.error('품절 상태 변경에 실패했습니다');
@@ -1234,10 +1338,10 @@ export default function AdminMenuManagement() {
   const handleSaveMenu = async (menuData: Omit<Menu, 'id' | 'createdAt'>) => {
     try {
       if (editingMenu) {
-        await updateMenu(editingMenu.id, menuData);
+        await updateMenu(store.id, editingMenu.id, menuData);
         toast.success('메뉴가 수정되었습니다');
       } else {
-        await createMenu(menuData);
+        await createMenu(store.id, menuData);
         toast.success('메뉴가 추가되었습니다');
       }
       setIsModalOpen(false);
@@ -1503,13 +1607,13 @@ function MenuFormModal({ menu, onSave, onClose }: MenuFormModalProps) {
             />
           </div>
 
-          <ImageUpload
-            label="메뉴 이미지 (선택)"
-            defaultImage={formData.imageUrl}
-            onImageSelected={(file) => uploadMenuImage(file, menu?.id || '')}
-            onImageRemoved={() => setFormData(prev => ({ ...prev, imageUrl: '' }))}
-            aspectRatio="video"
-          />
+          <div className="mb-4">
+            <ImageUpload
+              menuId={menu ? menu.id : 'new'}
+              currentImageUrl={formData.imageUrl}
+              onImageUploaded={(url) => setFormData({ ...formData, imageUrl: url })}
+            />
+          </div>
 
           <div className="border-t border-gray-200 pt-5 mt-5">
             <label className="block text-sm font-medium text-gray-700 mb-3">
@@ -1659,8 +1763,10 @@ import { createNotice, updateNotice, deleteNotice, toggleNoticePinned, getAllNot
 
 export default function AdminNoticeManagement() {
   const { store } = useStore();
+  if (!store?.id) return null;
+
   const { data: notices, loading } = useFirestoreCollection<Notice>(
-    getAllNoticesQuery()
+    getAllNoticesQuery(store.id)
   );
 
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -1679,7 +1785,7 @@ export default function AdminNoticeManagement() {
   const handleDeleteNotice = async (noticeId: string) => {
     if (window.confirm('정말 삭제하시겠습니까?')) {
       try {
-        await deleteNotice(noticeId);
+        await deleteNotice(store.id, noticeId);
         toast.success('공지사항이 삭제되었습니다');
       } catch (error) {
         toast.error('공지사항 삭제에 실패했습니다');
@@ -1689,7 +1795,7 @@ export default function AdminNoticeManagement() {
 
   const handleTogglePin = async (noticeId: string, currentPinned: boolean) => {
     try {
-      await toggleNoticePinned(noticeId, !currentPinned);
+      await toggleNoticePinned(store.id, noticeId, !currentPinned);
       toast.success('고정 상태가 변경되었습니다');
     } catch (error) {
       toast.error('고정 상태 변경에 실패했습니다');
@@ -1699,10 +1805,10 @@ export default function AdminNoticeManagement() {
   const handleSaveNotice = async (noticeData: Omit<Notice, 'id' | 'createdAt' | 'updatedAt'>) => {
     try {
       if (editingNotice) {
-        await updateNotice(editingNotice.id, noticeData);
+        await updateNotice(store.id, editingNotice.id, noticeData);
         toast.success('공지사항이 수정되었습니다');
       } else {
-        await createNotice(noticeData);
+        await createNotice(store.id, noticeData);
         toast.success('공지사항이 추가되었습니다');
       }
       setIsModalOpen(false);
@@ -1963,7 +2069,7 @@ export default function AdminOrderManagement() {
   // 주의: order.ts의 getAllOrdersQuery는 'deleted' 필드 등을 이미 처리하고 있어야 함.
   // 여기서는 클라이언트 사이드 필터링 사용
   const { data: allOrders, loading } = useFirestoreCollection<Order>(
-    getAllOrdersQuery()
+    store?.id ? getAllOrdersQuery(store.id) : null
   );
 
   const filteredOrders = filter === '전체'
@@ -1973,8 +2079,9 @@ export default function AdminOrderManagement() {
   const filters: (OrderStatus | '전체')[] = ['전체', '접수', '조리중', '배달중', '완료', '취소'];
 
   const handleStatusChange = async (orderId: string, newStatus: OrderStatus) => {
+    if (!store?.id) return;
     try {
-      await updateOrderStatus(orderId, newStatus);
+      await updateOrderStatus(store.id, orderId, newStatus);
       toast.success(`주문 상태가 '${ORDER_STATUS_LABELS[newStatus]}'(으)로 변경되었습니다`);
     } catch (error) {
       toast.error('주문 상태 변경에 실패했습니다');
@@ -2237,8 +2344,10 @@ import { getAllReviewsQuery, updateReview, deleteReview } from '../../services/r
 
 export default function AdminReviewManagement() {
   const { store } = useStore();
+  if (!store?.id) return null;
+
   const { data: reviews, loading } = useFirestoreCollection<Review>(
-    getAllReviewsQuery()
+    getAllReviewsQuery(store.id)
   );
 
   const [selectedReview, setSelectedReview] = useState<Review | null>(null);
@@ -2252,7 +2361,7 @@ export default function AdminReviewManagement() {
 
   const handleApprove = async (reviewId: string) => {
     try {
-      await updateReview(reviewId, { status: 'approved' });
+      await updateReview(store.id, reviewId, { status: 'approved' });
       toast.success('리뷰가 승인되었습니다');
     } catch (error) {
       toast.error('리뷰 승인 실패');
@@ -2261,7 +2370,7 @@ export default function AdminReviewManagement() {
 
   const handleReject = async (reviewId: string) => {
     try {
-      await updateReview(reviewId, { status: 'rejected' });
+      await updateReview(store.id, reviewId, { status: 'rejected' });
       toast.success('리뷰가 거부되었습니다');
     } catch (error) {
       toast.error('리뷰 거부 실패');
@@ -2271,7 +2380,7 @@ export default function AdminReviewManagement() {
   const handleDelete = async (reviewId: string, orderId: string) => {
     if (confirm('정말 이 리뷰를 삭제하시겠습니까?')) {
       try {
-        await deleteReview(reviewId, orderId);
+        await deleteReview(store.id, reviewId, orderId);
         toast.success('리뷰가 삭제되었습니다');
       } catch (error) {
         toast.error('리뷰 삭제 실패');
@@ -2286,7 +2395,7 @@ export default function AdminReviewManagement() {
     }
 
     try {
-      await updateReview(reviewId, {
+      await updateReview(store.id, reviewId, {
         adminReply: replyText,
         status: 'approved'
       });
@@ -2395,8 +2504,8 @@ export default function AdminReviewManagement() {
             <button
               onClick={() => setFilterStatus('all')}
               className={`px-4 py-2 rounded-lg transition-colors ${filterStatus === 'all'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-white text-gray-700 hover:bg-gray-100'
+                ? 'bg-blue-600 text-white'
+                : 'bg-white text-gray-700 hover:bg-gray-100'
                 }`}
             >
               전체
@@ -2404,8 +2513,8 @@ export default function AdminReviewManagement() {
             <button
               onClick={() => setFilterStatus('pending')}
               className={`px-4 py-2 rounded-lg transition-colors ${filterStatus === 'pending'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-white text-gray-700 hover:bg-gray-100'
+                ? 'bg-blue-600 text-white'
+                : 'bg-white text-gray-700 hover:bg-gray-100'
                 }`}
             >
               대기중 ({pendingReviews})
@@ -2413,8 +2522,8 @@ export default function AdminReviewManagement() {
             <button
               onClick={() => setFilterStatus('approved')}
               className={`px-4 py-2 rounded-lg transition-colors ${filterStatus === 'approved'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-white text-gray-700 hover:bg-gray-100'
+                ? 'bg-blue-600 text-white'
+                : 'bg-white text-gray-700 hover:bg-gray-100'
                 }`}
             >
               승인됨 ({approvedReviews})
@@ -2548,12 +2657,12 @@ export default function AdminReviewManagement() {
  * 상점 정보 수정, 브랜딩, 운영 시간 등 설정
  */
 
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 import { useStore } from '../../contexts/StoreContext';
 import { UpdateStoreFormData } from '../../types/store';
-import { toast } from 'sonner';
+import { toast } from 'sonner@2.0.3';
 import { useNavigate } from 'react-router-dom';
 import AdminSidebar from '../../components/admin/AdminSidebar';
 import Card from '../../components/common/Card';
@@ -2608,7 +2717,7 @@ export default function AdminStoreSettings() {
     setSaving(true);
 
     try {
-      const storeRef = doc(db, 'store', 'default');
+      const storeRef = doc(db, 'stores', 'default');
       await updateDoc(storeRef, {
         ...formData,
         updatedAt: serverTimestamp(),
@@ -2679,7 +2788,7 @@ export default function AdminStoreSettings() {
                 <Store className="w-6 h-6 text-white" />
               </div>
               <h1 className="text-3xl">
-                <span className="bg-gradient-to-r from-blue-600 to-blue-500 bg-clip-text text-transparent">
+                <span className="bg-gradient-to-r from-primary-600 to-primary-500 bg-clip-text text-transparent">
                   상점 설정
                 </span>
               </h1>
@@ -2709,7 +2818,7 @@ export default function AdminStoreSettings() {
                   <textarea
                     value={formData.description}
                     onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                    className="w-full px-4 py-2.5 text-gray-900 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 resize-none"
+                    className="w-full px-4 py-2.5 text-gray-900 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all duration-200 resize-none"
                     rows={4}
                   />
                 </div>
@@ -2773,25 +2882,43 @@ export default function AdminStoreSettings() {
             <Card>
               <h2 className="text-xl font-bold text-gray-900 mb-6">브랜딩</h2>
 
-              <div className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <ImageUpload
-                    label="상점 로고"
-                    defaultImage={formData.logoUrl}
-                    aspectRatio="square"
-                    circle
-                    onImageSelected={(file) => uploadStoreImage(file, 'logo')}
-                    onImageRemoved={() => setFormData(prev => ({ ...prev, logoUrl: '' }))}
-                  />
+              <div className="space-y-5">
+                <ImageUpload
+                  label="상점 로고 (선택)"
+                  currentImageUrl={formData.logoUrl}
+                  onImageUploaded={async (url) => {
+                    setFormData(prev => ({ ...prev, logoUrl: url }));
+                    // Auto-save logic
+                    try {
+                      await updateDoc(doc(db, 'stores', 'default'), { logoUrl: url });
+                      toast.success('상점 로고가 저장되었습니다');
+                    } catch (error) {
+                      console.error('Failed to auto-save logo:', error);
+                      toast.error('로고 저장 실패');
+                    }
+                  }}
+                  onUpload={(file) => uploadStoreImage(file, 'logo')}
+                  aspectRatio="square"
+                  circle
+                />
 
-                  <ImageUpload
-                    label="배너 이미지"
-                    defaultImage={formData.bannerUrl}
-                    aspectRatio="wide"
-                    onImageSelected={(file) => uploadStoreImage(file, 'banner')}
-                    onImageRemoved={() => setFormData(prev => ({ ...prev, bannerUrl: '' }))}
-                  />
-                </div>
+                <ImageUpload
+                  label="배너 이미지 (선택)"
+                  currentImageUrl={formData.bannerUrl}
+                  onImageUploaded={async (url) => {
+                    setFormData(prev => ({ ...prev, bannerUrl: url }));
+                    // Auto-save logic
+                    try {
+                      await updateDoc(doc(db, 'stores', 'default'), { bannerUrl: url });
+                      toast.success('배너 이미지가 저장되었습니다');
+                    } catch (error) {
+                      console.error('Failed to auto-save banner:', error);
+                      toast.error('배너 저장 실패');
+                    }
+                  }}
+                  onUpload={(file) => uploadStoreImage(file, 'banner')}
+                  aspectRatio="wide"
+                />
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1.5">

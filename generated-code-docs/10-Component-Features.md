@@ -1,17 +1,20 @@
 ﻿# 10-Component-Features
 
-Generated: 2025-12-07 01:31:21
+Generated: 2025-12-08 18:05:21
 
 ---
 
 ## File: src\components\admin\AdminSidebar.tsx
 
 ```typescript
+import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { LayoutDashboard, UtensilsCrossed, Package, Ticket, Star, Bell, Calendar, Settings, Home } from 'lucide-react';
+import { useStore } from '../../contexts/StoreContext';
 
 export default function AdminSidebar() {
   const location = useLocation();
+  const { store } = useStore();
 
   const menuItems = [
     { path: '/admin', icon: <LayoutDashboard className="w-5 h-5" />, label: '대시보드', exact: true },
@@ -35,9 +38,7 @@ export default function AdminSidebar() {
     <aside className="w-64 bg-white border-r border-gray-200 min-h-screen">
       <div className="p-6">
         {/* 로고 영역 */}
-        <div className="mb-8 flex items-center justify-center">
-          <h1 className="text-xl font-bold text-gray-800">관리자 페이지</h1>
-        </div>
+        {/* 로고 영역 제거됨 */}
 
         <nav className="space-y-1">
           {menuItems.map((item) => (

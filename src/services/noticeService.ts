@@ -12,16 +12,18 @@ import {
 import { db } from '../lib/firebase';
 import { Notice, NoticeCategory } from '../types/notice';
 
-const COLLECTION_NAME = 'notices';
+// 컬렉션 참조 헬퍼
+const getNoticeCollection = (storeId: string) => collection(db, 'stores', storeId, 'notices');
 
 /**
  * 공지사항 생성
  */
 export async function createNotice(
+  storeId: string,
   noticeData: Omit<Notice, 'id' | 'createdAt' | 'updatedAt'>
 ): Promise<string> {
   try {
-    const docRef = await addDoc(collection(db, COLLECTION_NAME), {
+    const docRef = await addDoc(getNoticeCollection(storeId), {
       ...noticeData,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
@@ -37,11 +39,12 @@ export async function createNotice(
  * 공지사항 수정
  */
 export async function updateNotice(
+  storeId: string,
   noticeId: string,
   noticeData: Partial<Omit<Notice, 'id' | 'createdAt'>>
 ): Promise<void> {
   try {
-    const noticeRef = doc(db, COLLECTION_NAME, noticeId);
+    const noticeRef = doc(db, 'stores', storeId, 'notices', noticeId);
     await updateDoc(noticeRef, {
       ...noticeData,
       updatedAt: serverTimestamp(),
@@ -56,10 +59,11 @@ export async function updateNotice(
  * 공지사항 삭제
  */
 export async function deleteNotice(
+  storeId: string,
   noticeId: string
 ): Promise<void> {
   try {
-    const noticeRef = doc(db, COLLECTION_NAME, noticeId);
+    const noticeRef = doc(db, 'stores', storeId, 'notices', noticeId);
     await deleteDoc(noticeRef);
   } catch (error) {
     console.error('공지사항 삭제 실패:', error);
@@ -71,11 +75,12 @@ export async function deleteNotice(
  * 공지사항 고정 토글
  */
 export async function toggleNoticePinned(
+  storeId: string,
   noticeId: string,
   pinned: boolean
 ): Promise<void> {
   try {
-    const noticeRef = doc(db, COLLECTION_NAME, noticeId);
+    const noticeRef = doc(db, 'stores', storeId, 'notices', noticeId);
     await updateDoc(noticeRef, {
       pinned,
       updatedAt: serverTimestamp(),
@@ -89,9 +94,9 @@ export async function toggleNoticePinned(
 /**
  * 모든 공지사항 쿼리 (고정 공지 우선, 최신순)
  */
-export function getAllNoticesQuery() {
+export function getAllNoticesQuery(storeId: string) {
   return query(
-    collection(db, COLLECTION_NAME),
+    getNoticeCollection(storeId),
     orderBy('pinned', 'desc'),
     orderBy('createdAt', 'desc')
   );
@@ -100,9 +105,9 @@ export function getAllNoticesQuery() {
 /**
  * 카테고리별 공지사항 쿼리
  */
-export function getNoticesByCategoryQuery(category: NoticeCategory) {
+export function getNoticesByCategoryQuery(storeId: string, category: NoticeCategory) {
   return query(
-    collection(db, COLLECTION_NAME),
+    getNoticeCollection(storeId),
     where('category', '==', category),
     orderBy('pinned', 'desc'),
     orderBy('createdAt', 'desc')
@@ -112,9 +117,9 @@ export function getNoticesByCategoryQuery(category: NoticeCategory) {
 /**
  * 고정된 공지사항만 조회
  */
-export function getPinnedNoticesQuery() {
+export function getPinnedNoticesQuery(storeId: string) {
   return query(
-    collection(db, COLLECTION_NAME),
+    getNoticeCollection(storeId),
     where('pinned', '==', true),
     orderBy('createdAt', 'desc')
   );

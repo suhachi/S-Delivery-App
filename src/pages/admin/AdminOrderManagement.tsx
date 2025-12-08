@@ -30,7 +30,7 @@ export default function AdminOrderManagement() {
   // 주의: order.ts의 getAllOrdersQuery는 'deleted' 필드 등을 이미 처리하고 있어야 함.
   // 여기서는 클라이언트 사이드 필터링 사용
   const { data: allOrders, loading } = useFirestoreCollection<Order>(
-    getAllOrdersQuery()
+    store?.id ? getAllOrdersQuery(store.id) : null
   );
 
   const filteredOrders = filter === '전체'
@@ -40,8 +40,9 @@ export default function AdminOrderManagement() {
   const filters: (OrderStatus | '전체')[] = ['전체', '접수', '조리중', '배달중', '완료', '취소'];
 
   const handleStatusChange = async (orderId: string, newStatus: OrderStatus) => {
+    if (!store?.id) return;
     try {
-      await updateOrderStatus(orderId, newStatus);
+      await updateOrderStatus(store.id, orderId, newStatus);
       toast.success(`주문 상태가 '${ORDER_STATUS_LABELS[newStatus]}'(으)로 변경되었습니다`);
     } catch (error) {
       toast.error('주문 상태 변경에 실패했습니다');

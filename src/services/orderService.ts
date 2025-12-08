@@ -11,12 +11,13 @@ import {
 import { db } from '../lib/firebase';
 import { Order, OrderStatus } from '../types/order';
 
-const COLLECTION_NAME = 'orders';
+// 컬렉션 참조 헬퍼 (stores/{storeId}/orders)
+const getOrderCollection = (storeId: string) => collection(db, 'stores', storeId, 'orders');
 
 // 주문 생성
-export async function createOrder(orderData: Omit<Order, 'id' | 'createdAt' | 'updatedAt'>) {
+export async function createOrder(storeId: string, orderData: Omit<Order, 'id' | 'createdAt' | 'updatedAt'>) {
   try {
-    const docRef = await addDoc(collection(db, COLLECTION_NAME), {
+    const docRef = await addDoc(getOrderCollection(storeId), {
       ...orderData,
       status: '접수' as OrderStatus,
       createdAt: serverTimestamp(),
@@ -30,9 +31,9 @@ export async function createOrder(orderData: Omit<Order, 'id' | 'createdAt' | 'u
 }
 
 // 주문 상태 변경
-export async function updateOrderStatus(orderId: string, status: OrderStatus) {
+export async function updateOrderStatus(storeId: string, orderId: string, status: OrderStatus) {
   try {
-    const orderRef = doc(db, COLLECTION_NAME, orderId);
+    const orderRef = doc(db, 'stores', storeId, 'orders', orderId);
     await updateDoc(orderRef, {
       status,
       updatedAt: serverTimestamp(),
@@ -44,9 +45,9 @@ export async function updateOrderStatus(orderId: string, status: OrderStatus) {
 }
 
 // 주문 취소
-export async function cancelOrder(orderId: string) {
+export async function cancelOrder(storeId: string, orderId: string) {
   try {
-    const orderRef = doc(db, COLLECTION_NAME, orderId);
+    const orderRef = doc(db, 'stores', storeId, 'orders', orderId);
     await updateDoc(orderRef, {
       status: '취소' as OrderStatus,
       updatedAt: serverTimestamp(),
@@ -58,24 +59,24 @@ export async function cancelOrder(orderId: string) {
 }
 
 // Query 헬퍼 함수들
-export function getUserOrdersQuery(userId: string) {
+export function getUserOrdersQuery(storeId: string, userId: string) {
   return query(
-    collection(db, COLLECTION_NAME),
+    getOrderCollection(storeId),
     where('userId', '==', userId),
     orderBy('createdAt', 'desc')
   );
 }
 
-export function getAllOrdersQuery() {
+export function getAllOrdersQuery(storeId: string) {
   return query(
-    collection(db, COLLECTION_NAME),
+    getOrderCollection(storeId),
     orderBy('createdAt', 'desc')
   );
 }
 
-export function getOrdersByStatusQuery(status: OrderStatus) {
+export function getOrdersByStatusQuery(storeId: string, status: OrderStatus) {
   return query(
-    collection(db, COLLECTION_NAME),
+    getOrderCollection(storeId),
     where('status', '==', status),
     orderBy('createdAt', 'desc')
   );

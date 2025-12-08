@@ -13,24 +13,25 @@ import {
 import { db } from '../lib/firebase';
 import { Review, CreateReviewData, UpdateReviewData } from '../types/review';
 
-const REVIEWS_COLLECTION = 'reviews';
-const ORDERS_COLLECTION = 'orders';
+// 컬렉션 참조 헬퍼
+const getReviewCollection = (storeId: string) => collection(db, 'stores', storeId, 'reviews');
 
 /**
  * 리뷰 생성
  */
 export async function createReview(
+  storeId: string,
   reviewData: CreateReviewData
 ): Promise<string> {
   try {
     // 1. 리뷰 생성
-    const docRef = await addDoc(collection(db, REVIEWS_COLLECTION), {
+    const docRef = await addDoc(getReviewCollection(storeId), {
       ...reviewData,
       createdAt: serverTimestamp(),
     });
 
-    // 2. 주문 문서에 리뷰 정보 미러링
-    const orderRef = doc(db, ORDERS_COLLECTION, reviewData.orderId);
+    // 2. 주문 문서에 리뷰 정보 미러링 (stores/{storeId}/orders/{orderId})
+    const orderRef = doc(db, 'stores', storeId, 'orders', reviewData.orderId);
     await updateDoc(orderRef, {
       reviewed: true,
       reviewText: reviewData.comment,
@@ -49,18 +50,16 @@ export async function createReview(
  * 리뷰 수정
  */
 export async function updateReview(
+  storeId: string,
   reviewId: string,
   reviewData: UpdateReviewData
 ): Promise<void> {
   try {
-    const reviewRef = doc(db, REVIEWS_COLLECTION, reviewId);
+    const reviewRef = doc(db, 'stores', storeId, 'reviews', reviewId);
     await updateDoc(reviewRef, {
       ...reviewData,
       updatedAt: serverTimestamp(),
     });
-
-    // 주문 문서 업데이트 로직 (선택적)
-    // 여기서는 간단하게 생략하거나 필요 시 추가 구현
   } catch (error) {
     console.error('리뷰 수정 실패:', error);
     throw error;
@@ -71,16 +70,17 @@ export async function updateReview(
  * 리뷰 삭제
  */
 export async function deleteReview(
+  storeId: string,
   reviewId: string,
   orderId: string
 ): Promise<void> {
   try {
     // 1. 리뷰 삭제
-    const reviewRef = doc(db, REVIEWS_COLLECTION, reviewId);
+    const reviewRef = doc(db, 'stores', storeId, 'reviews', reviewId);
     await deleteDoc(reviewRef);
 
     // 2. 주문 문서 리뷰 필드 초기화
-    const orderRef = doc(db, ORDERS_COLLECTION, orderId);
+    const orderRef = doc(db, 'stores', storeId, 'orders', orderId);
     await updateDoc(orderRef, {
       reviewed: false,
       reviewText: null,
@@ -97,12 +97,13 @@ export async function deleteReview(
  * 특정 주문의 리뷰 조회
  */
 export async function getReviewByOrder(
+  storeId: string,
   orderId: string,
   userId: string
 ): Promise<Review | null> {
   try {
     const q = query(
-      collection(db, REVIEWS_COLLECTION),
+      getReviewCollection(storeId),
       where('orderId', '==', orderId),
       where('userId', '==', userId)
     );
@@ -127,9 +128,9 @@ export async function getReviewByOrder(
 /**
  * 모든 리뷰 쿼리 (최신순)
  */
-export function getAllReviewsQuery() {
+export function getAllReviewsQuery(storeId: string) {
   return query(
-    collection(db, REVIEWS_COLLECTION),
+    getReviewCollection(storeId),
     orderBy('createdAt', 'desc')
   );
 }
@@ -137,9 +138,9 @@ export function getAllReviewsQuery() {
 /**
  * 특정 평점 이상 리뷰 쿼리
  */
-export function getReviewsByRatingQuery(minRating: number) {
+export function getReviewsByRatingQuery(storeId: string, minRating: number) {
   return query(
-    collection(db, REVIEWS_COLLECTION),
+    getReviewCollection(storeId),
     where('rating', '>=', minRating),
     orderBy('rating', 'desc'),
     orderBy('createdAt', 'desc')

@@ -1,6 +1,6 @@
 ﻿# 07-Page-Main
 
-Generated: 2025-12-07 01:31:21
+Generated: 2025-12-08 18:05:20
 
 ---
 
@@ -919,17 +919,17 @@ import MenuCard from '../components/menu/MenuCard';
 import Input from '../components/common/Input';
 import { useStore } from '../contexts/StoreContext';
 import { useFirestoreCollection } from '../hooks/useFirestoreCollection';
-import { getMenusQuery } from '../services/menuService';
+import { getMenusPath } from '../lib/firestorePaths';
 import { Menu } from '../types/menu';
 
 export default function MenuPage() {
-  const { store } = useStore();
+  const { storeId } = useStore();
   const [selectedCategory, setSelectedCategory] = useState('전체');
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Firestore에서 메뉴 조회 (단일 상점 구조 사용)
+  // Firestore에서 메뉴 조회
   const { data: menus, loading } = useFirestoreCollection<Menu>(
-    store ? getMenusQuery() : null
+    storeId ? getMenusPath(storeId) : null
   );
 
   const filteredMenus = useMemo(() => {
@@ -1625,18 +1625,21 @@ import ReviewModal from '../components/review/ReviewModal';
 import { useAuth } from '../contexts/AuthContext';
 import { useStore } from '../contexts/StoreContext';
 import { useFirestoreCollection } from '../hooks/useFirestoreCollection';
-import { getUserOrdersQuery } from '../services/orderService';
+import { getOrdersPath } from '../lib/firestorePaths';
 import { Order } from '../types/order';
+import { query, collection, where, orderBy } from 'firebase/firestore';
+import { db } from '../lib/firebase';
 
 export default function OrdersPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { store } = useStore();
+  const { storeId } = useStore();
   const [filter, setFilter] = useState<OrderStatus | '전체'>('전체');
   
   // Firestore에서 현재 사용자의 주문 조회
   const { data: allOrders, loading } = useFirestoreCollection<Order>(
-    user?.id ? getUserOrdersQuery(user.id) : null
+    storeId && user ? getOrdersPath(storeId) : null,
+    storeId && user ? [where('userId', '==', user.uid), orderBy('createdAt', 'desc')] : undefined
   );
   
   const filteredOrders = filter === '전체' 
@@ -2078,7 +2081,7 @@ import { db } from '../lib/firebase';
 import { useAuth } from '../contexts/AuthContext';
 import { useStore } from '../contexts/StoreContext';
 import { StoreFormData } from '../types/store';
-import { toast } from 'sonner';
+import { toast } from 'sonner@2.0.3';
 import Button from '../components/common/Button';
 import Input from '../components/common/Input';
 import Card from '../components/common/Card';
@@ -2187,8 +2190,8 @@ export default function StoreSetupWizard() {
         updatedAt: serverTimestamp(),
       };
 
-      // 루트 컬렉션 'store'의 'default' 문서로 저장
-      await setDoc(doc(db, 'store', 'default'), storeData);
+      // 루트 컬렉션 'stores'의 'default' 문서로 저장
+      await setDoc(doc(db, 'stores', 'default'), storeData);
 
       toast.success('상점이 생성되었습니다! 🎉');
 
@@ -2475,20 +2478,29 @@ export default function WelcomePage() {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-white p-4 animate-fade-in">
       {/* 로고 또는 대표 이미지 */}
-      <div className="w-32 h-32 md:w-40 md:h-40 mb-8 rounded-3xl gradient-primary flex items-center justify-center shadow-lg transform hover:scale-105 transition-transform duration-500">
-        <span className="text-6xl md:text-7xl">🍜</span>
-      </div>
+      {/* 로고 또는 대표 이미지 */}
+      {store?.logoUrl ? (
+        <img
+          src={store.logoUrl}
+          alt={store.name}
+          className="w-48 h-48 md:w-64 md:h-64 mb-8 rounded-3xl object-cover shadow-lg transform hover:scale-105 transition-transform duration-500"
+        />
+      ) : (
+        <div className="w-48 h-48 md:w-64 md:h-64 mb-8 rounded-3xl gradient-primary flex items-center justify-center shadow-lg transform hover:scale-105 transition-transform duration-500">
+          <span className="text-8xl md:text-9xl">🍜</span>
+        </div>
+      )}
 
       {/* 상점 이름 */}
-      <h1 className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-blue-600 to-blue-500 bg-clip-text text-transparent text-center mb-2">
+      <h1 className="text-4xl md:text-5xl font-bold text-primary-600 text-center mb-2">
         {store?.name || 'Simple Delivery'}
       </h1>
 
       {/* 로딩 인디케이터 (선택) */}
       <div className="mt-8 flex gap-2">
-        <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-        <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-        <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+        <div className="w-2 h-2 bg-primary-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+        <div className="w-2 h-2 bg-primary-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+        <div className="w-2 h-2 bg-primary-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
       </div>
     </div>
   );

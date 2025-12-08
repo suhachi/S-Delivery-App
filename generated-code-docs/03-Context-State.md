@@ -1,6 +1,6 @@
 ﻿# 03-Context-State
 
-Generated: 2025-12-07 01:31:21
+Generated: 2025-12-08 18:05:20
 
 ---
 
@@ -191,14 +191,11 @@ export function StoreProvider({ children }: StoreProviderProps) {
   const [error, setError] = useState<Error | null>(null);
 
   useEffect(() => {
-    // 단일 상점 문서 'store/default' 구독
-    const storeRef = doc(db, 'store', 'default');
-    
-    console.log('StoreContext: Subscribing to store/default');
+    // 단일 상점 문서 'stores/default' 구독
+    const storeRef = doc(db, 'stores', 'default');
 
     const unsubscribe = onSnapshot(storeRef,
       (snapshot) => {
-        console.log('StoreContext: Snapshot received', { exists: snapshot.exists() });
         if (snapshot.exists()) {
           setStore({
             id: snapshot.id,

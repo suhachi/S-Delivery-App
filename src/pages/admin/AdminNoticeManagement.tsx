@@ -14,8 +14,10 @@ import { createNotice, updateNotice, deleteNotice, toggleNoticePinned, getAllNot
 
 export default function AdminNoticeManagement() {
   const { store } = useStore();
+  if (!store?.id) return null;
+
   const { data: notices, loading } = useFirestoreCollection<Notice>(
-    getAllNoticesQuery()
+    getAllNoticesQuery(store.id)
   );
 
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -34,7 +36,7 @@ export default function AdminNoticeManagement() {
   const handleDeleteNotice = async (noticeId: string) => {
     if (window.confirm('정말 삭제하시겠습니까?')) {
       try {
-        await deleteNotice(noticeId);
+        await deleteNotice(store.id, noticeId);
         toast.success('공지사항이 삭제되었습니다');
       } catch (error) {
         toast.error('공지사항 삭제에 실패했습니다');
@@ -44,7 +46,7 @@ export default function AdminNoticeManagement() {
 
   const handleTogglePin = async (noticeId: string, currentPinned: boolean) => {
     try {
-      await toggleNoticePinned(noticeId, !currentPinned);
+      await toggleNoticePinned(store.id, noticeId, !currentPinned);
       toast.success('고정 상태가 변경되었습니다');
     } catch (error) {
       toast.error('고정 상태 변경에 실패했습니다');
@@ -54,10 +56,10 @@ export default function AdminNoticeManagement() {
   const handleSaveNotice = async (noticeData: Omit<Notice, 'id' | 'createdAt' | 'updatedAt'>) => {
     try {
       if (editingNotice) {
-        await updateNotice(editingNotice.id, noticeData);
+        await updateNotice(store.id, editingNotice.id, noticeData);
         toast.success('공지사항이 수정되었습니다');
       } else {
-        await createNotice(noticeData);
+        await createNotice(store.id, noticeData);
         toast.success('공지사항이 추가되었습니다');
       }
       setIsModalOpen(false);

@@ -13,8 +13,10 @@ import { getAllReviewsQuery, updateReview, deleteReview } from '../../services/r
 
 export default function AdminReviewManagement() {
   const { store } = useStore();
+  if (!store?.id) return null;
+
   const { data: reviews, loading } = useFirestoreCollection<Review>(
-    getAllReviewsQuery()
+    getAllReviewsQuery(store.id)
   );
 
   const [selectedReview, setSelectedReview] = useState<Review | null>(null);
@@ -28,7 +30,7 @@ export default function AdminReviewManagement() {
 
   const handleApprove = async (reviewId: string) => {
     try {
-      await updateReview(reviewId, { status: 'approved' });
+      await updateReview(store.id, reviewId, { status: 'approved' });
       toast.success('리뷰가 승인되었습니다');
     } catch (error) {
       toast.error('리뷰 승인 실패');
@@ -37,7 +39,7 @@ export default function AdminReviewManagement() {
 
   const handleReject = async (reviewId: string) => {
     try {
-      await updateReview(reviewId, { status: 'rejected' });
+      await updateReview(store.id, reviewId, { status: 'rejected' });
       toast.success('리뷰가 거부되었습니다');
     } catch (error) {
       toast.error('리뷰 거부 실패');
@@ -47,7 +49,7 @@ export default function AdminReviewManagement() {
   const handleDelete = async (reviewId: string, orderId: string) => {
     if (confirm('정말 이 리뷰를 삭제하시겠습니까?')) {
       try {
-        await deleteReview(reviewId, orderId);
+        await deleteReview(store.id, reviewId, orderId);
         toast.success('리뷰가 삭제되었습니다');
       } catch (error) {
         toast.error('리뷰 삭제 실패');
@@ -62,7 +64,7 @@ export default function AdminReviewManagement() {
     }
 
     try {
-      await updateReview(reviewId, {
+      await updateReview(store.id, reviewId, {
         adminReply: replyText,
         status: 'approved'
       });
@@ -171,8 +173,8 @@ export default function AdminReviewManagement() {
             <button
               onClick={() => setFilterStatus('all')}
               className={`px-4 py-2 rounded-lg transition-colors ${filterStatus === 'all'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-white text-gray-700 hover:bg-gray-100'
+                ? 'bg-blue-600 text-white'
+                : 'bg-white text-gray-700 hover:bg-gray-100'
                 }`}
             >
               전체
@@ -180,8 +182,8 @@ export default function AdminReviewManagement() {
             <button
               onClick={() => setFilterStatus('pending')}
               className={`px-4 py-2 rounded-lg transition-colors ${filterStatus === 'pending'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-white text-gray-700 hover:bg-gray-100'
+                ? 'bg-blue-600 text-white'
+                : 'bg-white text-gray-700 hover:bg-gray-100'
                 }`}
             >
               대기중 ({pendingReviews})
@@ -189,8 +191,8 @@ export default function AdminReviewManagement() {
             <button
               onClick={() => setFilterStatus('approved')}
               className={`px-4 py-2 rounded-lg transition-colors ${filterStatus === 'approved'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-white text-gray-700 hover:bg-gray-100'
+                ? 'bg-blue-600 text-white'
+                : 'bg-white text-gray-700 hover:bg-gray-100'
                 }`}
             >
               승인됨 ({approvedReviews})

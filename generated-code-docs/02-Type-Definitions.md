@@ -1,6 +1,6 @@
 ﻿# 02-Type-Definitions
 
-Generated: 2025-12-07 01:31:21
+Generated: 2025-12-08 18:05:20
 
 ---
 

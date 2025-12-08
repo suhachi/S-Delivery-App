@@ -1,6 +1,6 @@
 ﻿# 09-Component-Common-UI
 
-Generated: 2025-12-07 01:31:21
+Generated: 2025-12-08 18:05:20
 
 ---
 
@@ -58,7 +58,7 @@ export default function Badge({
 ## File: src\components\common\Button.tsx
 
 ```typescript
-import { ButtonHTMLAttributes } from 'react';
+import React, { ButtonHTMLAttributes } from 'react';
 import { Loader2 } from 'lucide-react';
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
@@ -79,23 +79,23 @@ export default function Button({
   ...props
 }: ButtonProps) {
   const baseClasses = 'inline-flex items-center justify-center font-medium rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-60 disabled:cursor-not-allowed';
-  
+
   const variantClasses = {
-    primary: 'gradient-primary text-white hover:shadow-lg hover:scale-[1.02] focus:ring-blue-500',
+    primary: 'gradient-primary text-white hover:shadow-lg hover:scale-[1.02] focus:ring-primary-500',
     secondary: 'gradient-secondary text-white hover:shadow-lg hover:scale-[1.02] focus:ring-orange-500',
-    outline: 'border-2 border-blue-500 text-blue-600 hover:bg-blue-50 focus:ring-blue-500',
+    outline: 'border-2 border-primary-500 text-primary-600 hover:bg-primary-50 focus:ring-primary-500',
     ghost: 'text-gray-700 hover:bg-gray-100 focus:ring-gray-500',
     danger: 'bg-red-500 text-white hover:bg-red-600 hover:shadow-lg focus:ring-red-500',
   };
-  
+
   const sizeClasses = {
     sm: 'px-3 py-1.5 text-sm',
     md: 'px-5 py-2.5 text-base',
     lg: 'px-6 py-3 text-lg',
   };
-  
+
   const widthClass = fullWidth ? 'w-full' : '';
-  
+
   return (
     <button
       className={`${baseClasses} ${variantClasses[variant]} ${sizeClasses[size]} ${widthClass} ${className}`}
@@ -164,188 +164,155 @@ export default function Card({
 ## File: src\components\common\ImageUpload.tsx
 
 ```typescript
-import React, { useRef, useState } from 'react';
-import { Upload, X, Loader2, Image as ImageIcon } from 'lucide-react';
+import { useState, useRef } from 'react';
+import { Upload, X, Image as ImageIcon } from 'lucide-react';
+import { uploadMenuImage, validateImageFile } from '../../services/storageService';
 import { toast } from 'sonner';
 
 interface ImageUploadProps {
   label?: string;
-  defaultImage?: string;
-  onImageSelected: (file: File) => Promise<string>; // 업로드 후 URL 반환
-  onImageRemoved?: () => void;
-  className?: string;
-  aspectRatio?: 'square' | 'video' | 'wide' | 'auto'; // 미리보기 비율
-  circle?: boolean; // 원형 미리보기 (프로필 등)
+  currentImageUrl?: string;
+  onImageUploaded: (url: string) => void;
+  // Optional specific props
+  menuId?: string;
+  onUpload?: (file: File, onProgress: (progress: number) => void) => Promise<string>;
+  aspectRatio?: 'square' | 'wide' | 'standard'; // square=1:1, wide=16:9, standard=4:3
+  circle?: boolean; // For profile/logo images
+  defaultImage?: string; // Fallback or initial image
 }
 
 export default function ImageUpload({
-  label,
-  defaultImage,
-  onImageSelected,
-  onImageRemoved,
-  className = '',
-  aspectRatio = 'video', // 16:9 기본
+  label = '이미지',
+  currentImageUrl,
+  onImageUploaded,
+  menuId,
+  onUpload,
+  aspectRatio = 'standard',
   circle = false,
+  defaultImage
 }: ImageUploadProps) {
+  const [uploading, setUploading] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [previewUrl, setPreviewUrl] = useState<string | undefined>(currentImageUrl || defaultImage);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(defaultImage || null);
-  const [loading, setLoading] = useState(false);
-  const [dragActive, setDragActive] = useState(false);
 
-  // 이미지 변경 감지
-  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      await processFile(file);
+  const getAspectRatioClass = () => {
+    if (circle) return 'aspect-square rounded-full';
+    switch (aspectRatio) {
+      case 'square': return 'aspect-square rounded-lg';
+      case 'wide': return 'aspect-[16/9] rounded-lg';
+      case 'standard': default: return 'aspect-[4/3] rounded-lg';
     }
   };
 
-  // 파일 처리 및 업로드
-  const processFile = async (file: File) => {
-    // 유효성 검사 (간단한 클라이언트 측)
-    if (!file.type.startsWith('image/')) {
-      toast.error('이미지 파일만 업로드 가능합니다.');
-      return;
-    }
-    if (file.size > 5 * 1024 * 1024) { // 5MB
-      toast.error('파일 크기는 5MB 이하여야 합니다.');
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // 파일 유효성 검사
+    const validation = validateImageFile(file);
+    if (!validation.valid) {
+      toast.error(validation.error);
       return;
     }
 
-    setLoading(true);
-
-    // 로컬 미리보기 생성
+    // 미리보기 생성
     const reader = new FileReader();
     reader.onloadend = () => {
       setPreviewUrl(reader.result as string);
     };
     reader.readAsDataURL(file);
 
+    // 업로드 실행
+    setUploading(true);
     try {
-      // 상위 컴포넌트로 전달하여 실제 업로드 수행
-      const downloadUrl = await onImageSelected(file);
+      let downloadURL = '';
 
-      // 업로드 완료 후 URL 업데이트
-      setPreviewUrl(downloadUrl);
-      toast.success('이미지가 업로드되었습니다.');
-    } catch (error) {
-      console.error('Upload failed:', error);
-      toast.error('업로드에 실패했습니다.');
-      // 실패 시 미리보기 롤백
-      setPreviewUrl(defaultImage || null);
-    } finally {
-      setLoading(false);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = ''; // 입력 초기화
+      if (onUpload) {
+        // 커스텀 업로드 함수 사용
+        downloadURL = await onUpload(file, (p) => setProgress(p));
+      } else if (menuId) {
+        // 기존 메뉴 이미지 업로드 (하위 호환)
+        downloadURL = await uploadMenuImage(file, menuId, (p) => setProgress(p));
+      } else {
+        throw new Error('Upload handler is missing');
       }
+
+      onImageUploaded(downloadURL);
+      toast.success('이미지가 업로드되었습니다');
+    } catch (error) {
+      console.error('이미지 업로드 실패:', error);
+      toast.error('이미지 업로드에 실패했습니다');
+      setPreviewUrl(currentImageUrl || defaultImage);
+    } finally {
+      setUploading(false);
+      setProgress(0);
     }
   };
 
-  const handleRemove = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    setPreviewUrl(null);
-    if (fileInputRef.current) fileInputRef.current.value = '';
-    if (onImageRemoved) onImageRemoved();
-  };
-
-  // 드래그 앤 드롭
-  const handleDrag = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (e.type === 'dragenter' || e.type === 'dragover') {
-      setDragActive(true);
-    } else if (e.type === 'dragleave') {
-      setDragActive(false);
-    }
-  };
-
-  const handleDrop = async (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setDragActive(false);
-
-    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      await processFile(e.dataTransfer.files[0]);
+  const handleRemoveImage = () => {
+    setPreviewUrl(undefined);
+    onImageUploaded('');
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
     }
   };
 
   return (
-    <div className={className}>
+    <div>
       {label && (
-        <label className="block text-sm font-medium text-gray-700 mb-1.5">
+        <label className="block text-sm font-medium text-gray-700 mb-2">
           {label}
         </label>
       )}
 
-      <div
-        className={`
-          relative group cursor-pointer overflow-hidden border-2 border-dashed transition-all
-          ${circle ? 'rounded-full w-32 h-32' : 'rounded-xl w-full'}
-          ${aspectRatio === 'square' && !circle ? 'aspect-square' : ''}
-          ${aspectRatio === 'video' && !circle ? 'aspect-video' : ''}
-          ${aspectRatio === 'wide' && !circle ? 'aspect-[2/1]' : ''}
-          ${aspectRatio === 'auto' && !circle ? 'h-auto min-h-[150px]' : ''}
-          
-          ${dragActive ? 'border-blue-500 bg-blue-50' : 'border-gray-300 hover:border-blue-400 hover:bg-gray-50'}
-          ${previewUrl ? 'border-solid border-gray-200' : ''}
-        `}
-        onDragEnter={handleDrag}
-        onDragLeave={handleDrag}
-        onDragOver={handleDrag}
-        onDrop={handleDrop}
-        onClick={() => !loading && fileInputRef.current?.click()}
-      >
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="image/*"
-          className="hidden"
-          onChange={handleFileChange}
-          disabled={loading}
-        />
-
-        {loading ? (
-          <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/80 z-10 transition-opacity">
-            <Loader2 className="w-8 h-8 text-blue-500 animate-spin mb-2" />
-            <span className="text-sm text-gray-500 font-medium">업로드 중...</span>
-          </div>
-        ) : previewUrl ? (
-          <>
+      <div className="relative w-full">
+        {previewUrl ? (
+          <div className={`relative overflow-hidden bg-gray-100 border-2 border-gray-200 ${getAspectRatioClass()}`}>
             <img
               src={previewUrl}
-              alt="Preview"
+              alt="미리보기"
               className="w-full h-full object-cover"
             />
-            {/* Hover Overlay */}
-            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-              <span className="text-white text-sm font-medium flex items-center bg-black/20 px-3 py-1.5 rounded-full backdrop-blur-sm">
-                <Upload className="w-4 h-4 mr-1.5" /> 변경
-              </span>
+            {uploading && (
+              <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                <div className="text-white text-center">
+                  <div className="w-16 h-16 border-4 border-white border-t-transparent rounded-full animate-spin mx-auto mb-2" />
+                  <p>{Math.round(progress)}%</p>
+                </div>
+              </div>
+            )}
+            {!uploading && (
               <button
-                onClick={handleRemove}
-                className="p-2 bg-white/20 hover:bg-red-500 rounded-full text-white transition-colors backdrop-blur-sm"
-                title="삭제"
+                type="button"
+                onClick={handleRemoveImage}
+                className="absolute top-2 right-2 p-2 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors shadow-md transform hover:scale-105"
               >
                 <X className="w-4 h-4" />
               </button>
-            </div>
-          </>
-        ) : (
-          <div className="absolute inset-0 flex flex-col items-center justify-center text-gray-400 p-4 text-center">
-            <div className="mb-2 p-3 bg-gray-100 rounded-full group-hover:scale-110 transition-transform">
-              <ImageIcon className="w-6 h-6" />
-            </div>
-            <p className="text-sm font-medium text-gray-600">
-              이미지 업로드
-            </p>
-            {!circle && (
-              <p className="text-xs text-gray-400 mt-1">
-                클릭하거나 드래그하여 파일을 놓으세요
-              </p>
             )}
           </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={uploading}
+            className={`w-full border-2 border-dashed border-gray-300 hover:border-blue-500 transition-colors flex flex-col items-center justify-center text-gray-500 hover:text-blue-600 bg-gray-50 hover:bg-blue-50 ${getAspectRatioClass()}`}
+          >
+            <ImageIcon className="w-10 h-10 mb-2 opacity-50" />
+            <p className="text-sm font-medium">이미지 업로드</p>
+            <p className="text-xs mt-1 text-gray-400">JPG, PNG, WebP (최대 5MB)</p>
+          </button>
         )}
       </div>
+
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/jpeg,image/jpg,image/png,image/webp"
+        onChange={handleFileSelect}
+        className="hidden"
+      />
     </div>
   );
 }
@@ -515,20 +482,19 @@ export default function NotificationGuide() {
 ## File: src\components\common\TopBar.tsx
 
 ```typescript
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ShoppingCart, LogOut, User, Store as StoreIcon, Menu, X } from 'lucide-react';
+import { ShoppingCart, LogOut, User, Store, Menu, X } from 'lucide-react';
+import { toast } from 'sonner';
 import { useAuth } from '../../contexts/AuthContext';
 import { useCart } from '../../contexts/CartContext';
 import { useStore } from '../../contexts/StoreContext';
 
-import { toast } from 'sonner';
-
 export default function TopBar() {
   const navigate = useNavigate();
   const { user, isAdmin, logout } = useAuth();
-  const { getTotalItems } = useCart();
   const { store } = useStore();
+  const { getTotalItems } = useCart();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const cartItemsCount = getTotalItems();
 
@@ -544,15 +510,19 @@ export default function TopBar() {
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
           <Link to="/" className="flex items-center space-x-2 group">
-            <div className="w-10 h-10 gradient-primary rounded-xl flex items-center justify-center transform group-hover:scale-105 transition-transform overflow-hidden">
-              {store?.logoUrl ? (
-                <img src={store.logoUrl} alt="Store Logo" className="w-full h-full object-cover" />
-              ) : (
+            {store?.logoUrl ? (
+              <img
+                src={store.logoUrl}
+                alt={store.name}
+                className="w-10 h-10 rounded-xl object-cover border border-gray-100 shadow-sm transform group-hover:scale-105 transition-transform"
+              />
+            ) : (
+              <div className="w-10 h-10 gradient-primary rounded-xl flex items-center justify-center transform group-hover:scale-105 transition-transform">
                 <span className="text-white text-xl">🍜</span>
-              )}
-            </div>
-            <span className="text-xl font-bold bg-gradient-to-r from-blue-600 to-blue-500 bg-clip-text text-transparent">
-              {store?.name || '커스컴배달앱'}
+              </div>
+            )}
+            <span className="text-xl font-bold text-primary-600">
+              {store?.name || '배달앱'}
             </span>
           </Link>
 
@@ -565,7 +535,7 @@ export default function TopBar() {
             <NavLink to="/orders" icon={null}>내 주문</NavLink>
             <NavLink to="/mypage" icon={<User className="w-4 h-4" />}>마이페이지</NavLink>
             {isAdmin && (
-              <NavLink to="/admin" icon={<StoreIcon className="w-4 h-4" />}>
+              <NavLink to="/admin" icon={<Store className="w-4 h-4" />}>
                 관리자
               </NavLink>
             )}
@@ -5614,8 +5584,8 @@ export { Slider };
 ```typescript
 "use client";
 
-import { useTheme } from "next-themes";
-import { Toaster as Sonner, ToasterProps } from "sonner";
+import { useTheme } from "next-themes@0.4.6";
+import { Toaster as Sonner, ToasterProps } from "sonner@2.0.3";
 
 const Toaster = ({ ...props }: ToasterProps) => {
   const { theme = "system" } = useTheme();
