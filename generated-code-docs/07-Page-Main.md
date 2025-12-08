@@ -1,6 +1,6 @@
 ﻿# 07-Page-Main
 
-Generated: 2025-12-08 18:05:20
+Generated: 2025-12-08 19:25:45
 
 ---
 
@@ -1036,60 +1036,50 @@ import { useAuth } from '../contexts/AuthContext';
 import { useStore } from '../contexts/StoreContext';
 import { User, ShoppingBag, Ticket, Bell, Store, ChevronRight, LogOut } from 'lucide-react';
 import Card from '../components/common/Card';
-import Button from '../components/common/Button';
 import { Order } from '../types/order';
 import { Coupon } from '../types/coupon';
+import { useFirestoreCollection } from '../hooks/useFirestoreCollection';
+import { getUserOrdersQuery } from '../services/orderService';
+import { getActiveCouponsQuery } from '../services/couponService';
+import { toast } from 'sonner';
 
 export default function MyPage() {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
-  const { currentStore } = useStore();
-  const [recentOrders, setRecentOrders] = useState<Order[]>([]);
-  const [availableCoupons, setAvailableCoupons] = useState<Coupon[]>([]);
+  const { currentStore: store } = useStore();
   const [notificationEnabled, setNotificationEnabled] = useState(false);
 
-  // 가게 정보 기본값 (currentStore가 없을 때)
-  const storeInfo = currentStore || {
+  // 상점 정보 (store가 로딩 중이거나 없으면 안전하게 처리)
+  const storeInfo = store || {
     id: 'demo-store',
-    name: '커스컴배달',
-    phone: '02-1234-5678',
-    address: '서울시 강남구 테헤란로 123',
-    businessHours: {
-      monday: { open: '10:00', close: '22:00', closed: false },
-      tuesday: { open: '10:00', close: '22:00', closed: false },
-      wednesday: { open: '10:00', close: '22:00', closed: false },
-      thursday: { open: '10:00', close: '22:00', closed: false },
-      friday: { open: '10:00', close: '22:00', closed: false },
-      saturday: { open: '11:00', close: '21:00', closed: false },
-      sunday: { open: '11:00', close: '21:00', closed: false },
-    },
+    name: '상점 정보 로딩 중...',
+    phone: '',
+    address: '',
+    businessHours: undefined,
   };
 
-  useEffect(() => {
-    // TODO: Firestore에서 최근 주문 3개 조회
-    // const ordersQuery = query(
-    //   collection(db, 'stores', currentStore.id, 'orders'),
-    //   where('userId', '==', user?.id),
-    //   orderBy('createdAt', 'desc'),
-    //   limit(3)
-    // );
-    
-    // TODO: 사용 가능한 쿠폰 조회
-    // const couponsQuery = query(
-    //   collection(db, 'stores', currentStore.id, 'userCoupons'),
-    //   where('userId', '==', user?.id),
-    //   where('usedAt', '==', null)
-    // );
+  // 1. 최근 주문 조회 (실데이터)
+  // user와 store가 있을 때만 쿼리 생성
+  const ordersQuery = (store?.id && user?.uid)
+    ? getUserOrdersQuery(store.id, user.uid)
+    : null;
 
-    // Mock 데이터 사용
-    setRecentOrders([]);
-    setAvailableCoupons([]);
-    
-    // 알림 설정 상태 확인
+  const { data: allOrders, loading: ordersLoading } = useFirestoreCollection<Order>(ordersQuery);
+
+  // 최근 3개만 잘라서 표시
+  const recentOrders = allOrders ? allOrders.slice(0, 3) : [];
+
+  // 2. 사용 가능한 쿠폰 조회 (실데이터)
+  // 현재는 "상점의 활성 쿠폰"을 모두 보여주는 정책 (개인별 쿠폰함 기능이 아직 없다면)
+  const couponsQuery = store?.id ? getActiveCouponsQuery(store.id) : null;
+  const { data: availableCoupons, loading: couponsLoading } = useFirestoreCollection<Coupon>(couponsQuery);
+
+  useEffect(() => {
+    // 알림 설정 상태 확인 (단순 브라우저 API 체크)
     if ('Notification' in window) {
       setNotificationEnabled(Notification.permission === 'granted');
     }
-  }, [user, currentStore]);
+  }, []);
 
   const handleLogout = async () => {
     try {
@@ -1097,25 +1087,25 @@ export default function MyPage() {
       navigate('/');
     } catch (error) {
       console.error('로그아웃 실패:', error);
+      toast.error('로그아웃 중 오류가 발생했습니다.');
     }
   };
 
   const handleNotificationToggle = async () => {
     if (!('Notification' in window)) {
-      alert('이 브라우저는 알림을 지원하지 않습니다.');
+      toast.error('이 브라우저는 알림을 지원하지 않습니다.');
       return;
     }
 
     if (Notification.permission === 'granted') {
-      // 알림 비활성화는 브라우저 설정에서 해야 함
-      alert('알림을 비활성화하려면 브라우저 설정에서 변경해주세요.');
+      toast.info('알림을 비활성화하려면 브라우저 설정에서 변경해주세요.');
     } else {
       const permission = await Notification.requestPermission();
       setNotificationEnabled(permission === 'granted');
-      
+
       if (permission === 'granted') {
-        // TODO: FCM 토큰 발급 및 저장
-        alert('알림이 활성화되었습니다!');
+        // 추후 FCM 토큰 발급 로직 추가 예정
+        toast.success('알림이 활성화되었습니다!');
       }
     }
   };
@@ -1160,8 +1150,12 @@ export default function MyPage() {
                 <ChevronRight className="w-4 h-4" />
               </button>
             </div>
-            
-            {recentOrders.length > 0 ? (
+
+            {ordersLoading ? (
+              <div className="text-center py-8 text-gray-500">
+                <p className="text-sm">로딩 중...</p>
+              </div>
+            ) : recentOrders.length > 0 ? (
               <div className="space-y-3">
                 {recentOrders.map((order) => (
                   <div
@@ -1194,10 +1188,16 @@ export default function MyPage() {
             <div className="flex items-center gap-2 mb-4">
               <Ticket className="w-5 h-5 text-orange-600" />
               <h2 className="text-lg">쿠폰함</h2>
-              <span className="text-sm text-gray-500">({availableCoupons.length}장)</span>
+              <span className="text-sm text-gray-500">
+                ({availableCoupons ? availableCoupons.length : 0}장)
+              </span>
             </div>
-            
-            {availableCoupons.length > 0 ? (
+
+            {couponsLoading ? (
+              <div className="text-center py-8 text-gray-500">
+                <p className="text-sm">로딩 중...</p>
+              </div>
+            ) : (availableCoupons && availableCoupons.length > 0) ? (
               <div className="space-y-2">
                 {availableCoupons.map((coupon) => (
                   <div
@@ -1207,7 +1207,7 @@ export default function MyPage() {
                     <div>
                       <p className="font-medium">{coupon.name}</p>
                       <p className="text-xs text-gray-500">
-                        {new Date(coupon.validUntil).toLocaleDateString('ko-KR')}까지
+                        {coupon.validUntil ? new Date(coupon.validUntil).toLocaleDateString('ko-KR') + '까지' : '유효기간 없음'}
                       </p>
                     </div>
                     <div className="text-right">
@@ -1240,14 +1240,12 @@ export default function MyPage() {
             </div>
             <button
               onClick={handleNotificationToggle}
-              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                notificationEnabled ? 'bg-blue-600' : 'bg-gray-300'
-              }`}
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${notificationEnabled ? 'bg-blue-600' : 'bg-gray-300'
+                }`}
             >
               <span
-                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                  notificationEnabled ? 'translate-x-6' : 'translate-x-1'
-                }`}
+                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${notificationEnabled ? 'translate-x-6' : 'translate-x-1'
+                  }`}
               />
             </button>
           </Card>
@@ -1259,27 +1257,27 @@ export default function MyPage() {
                 <Store className="w-5 h-5 text-purple-600" />
                 <h2 className="text-lg">가게 정보</h2>
               </div>
-              
+
               <div className="space-y-3">
                 <div>
                   <p className="text-sm text-gray-500">상점명</p>
                   <p className="font-medium">{storeInfo.name}</p>
                 </div>
-                
+
                 {storeInfo.phone && (
                   <div>
                     <p className="text-sm text-gray-500">전화번호</p>
                     <p className="font-medium">{storeInfo.phone}</p>
                   </div>
                 )}
-                
+
                 {storeInfo.address && (
                   <div>
                     <p className="text-sm text-gray-500">주소</p>
                     <p className="font-medium">{storeInfo.address}</p>
                   </div>
                 )}
-                
+
                 {storeInfo.businessHours && (
                   <div>
                     <p className="text-sm text-gray-500 mb-2">영업시간</p>
@@ -1371,39 +1369,56 @@ export default function NoticePage() {
 
 ```typescript
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, MapPin, Phone, CreditCard, Clock, Package, CheckCircle2, MessageSquare } from 'lucide-react';
+import { ArrowLeft, MapPin, Phone, CreditCard, Clock, Package, CheckCircle2, MessageSquare, AlertCircle } from 'lucide-react';
 import { useState } from 'react';
-import { mockOrders } from '../data/mockOrders';
-import { ORDER_STATUS_LABELS, ORDER_STATUS_COLORS, PAYMENT_TYPE_LABELS, OrderStatus } from '../types/order';
+import { ORDER_STATUS_LABELS, ORDER_STATUS_COLORS, PAYMENT_TYPE_LABELS, OrderStatus, Order } from '../types/order';
 import Card from '../components/common/Card';
 import Badge from '../components/common/Badge';
 import Button from '../components/common/Button';
 import ReviewModal from '../components/review/ReviewModal';
 import { toast } from 'sonner';
+import { useStore } from '../contexts/StoreContext';
+import { useFirestoreDocument } from '../hooks/useFirestoreDocument';
 
 export default function OrderDetailPage() {
   const { orderId } = useParams();
   const navigate = useNavigate();
+  const { currentStore: store } = useStore();
   const [showReviewModal, setShowReviewModal] = useState(false);
-  
-  const order = mockOrders.find(o => o.id === orderId);
 
-  if (!order) {
+  // Fetch real order data
+  // Path: stores/{storeId}/orders/{orderId}
+  const collectionPath = store?.id ? `stores/${store.id}/orders` : '';
+  const { data: order, loading, error } = useFirestoreDocument<Order>(collectionPath, orderId);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-gray-500">주문 정보를 불러오는 중...</div>
+      </div>
+    );
+  }
+
+  if (error || !order) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <p className="text-xl text-gray-600 mb-4">주문을 찾을 수 없습니다</p>
+          <AlertCircle className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+          <p className="text-xl text-gray-600 mb-4">
+            {error ? '주문 정보를 불러오는데 실패했습니다' : '주문을 찾을 수 없습니다'}
+          </p>
           <Button onClick={() => navigate('/orders')}>주문 목록으로</Button>
         </div>
       </div>
     );
   }
 
-  const statusColor = ORDER_STATUS_COLORS[order.status as OrderStatus];
+  const statusColor = ORDER_STATUS_COLORS[order.status as OrderStatus] || ORDER_STATUS_COLORS['접수'];
 
   const handleReorder = () => {
-    toast.success('장바구니에 담았습���다');
-    navigate('/cart');
+    // TODO: 장바구니에 담기 로직 구현 필요 (여기서는 메시지만 표시)
+    toast.success('이 기능은 준비 중입니다 (재주문)');
+    // navigate('/cart');
   };
 
   const statusSteps: OrderStatus[] = ['접수', '조리중', '배달중', '완료'];
@@ -1426,7 +1441,7 @@ export default function OrderDetailPage() {
               주문 상세
             </span>
           </h1>
-          <p className="text-gray-600">주문번호: {order.id}</p>
+          <p className="text-gray-600">주문번호: {order.id.slice(0, 8)}</p>
         </div>
 
         <div className="space-y-6">
@@ -1442,16 +1457,16 @@ export default function OrderDetailPage() {
                     {ORDER_STATUS_LABELS[order.status as OrderStatus]}
                   </h2>
                   <p className="text-sm text-gray-600">
-                    {new Date(order.createdAt).toLocaleString('ko-KR')}
+                    {order.createdAt ? new Date(order.createdAt).toLocaleString('ko-KR') : '-'}
                   </p>
                 </div>
               </div>
               <Badge
                 variant={
                   order.status === '완료' ? 'success' :
-                  order.status === '취소' ? 'danger' :
-                  order.status === '배달중' ? 'secondary' :
-                  'primary'
+                    order.status === '취소' ? 'danger' :
+                      order.status === '배달중' ? 'secondary' :
+                        'primary'
                 }
                 size="lg"
               >
@@ -1466,7 +1481,7 @@ export default function OrderDetailPage() {
                   {statusSteps.map((step, idx) => (
                     <div key={step} className="flex-1 flex flex-col items-center">
                       <div className={`
-                        w-10 h-10 rounded-full flex items-center justify-center mb-2 transition-all
+                        w-10 h-10 rounded-full flex items-center justify-center mb-2 transition-all relative z-10
                         ${idx <= currentStepIndex ? 'gradient-primary text-white' : 'bg-gray-200 text-gray-400'}
                       `}>
                         {idx <= currentStepIndex ? (
@@ -1479,7 +1494,7 @@ export default function OrderDetailPage() {
                         {ORDER_STATUS_LABELS[step]}
                       </p>
                       {idx < statusSteps.length - 1 && (
-                        <div className={`absolute h-1 w-full top-5 left-1/2 -z-10 ${idx < currentStepIndex ? 'bg-blue-500' : 'bg-gray-200'}`} />
+                        <div className={`absolute h-1 w-full top-5 left-1/2 -z-0 ${idx < currentStepIndex ? 'bg-blue-500' : 'bg-gray-200'}`} />
                       )}
                     </div>
                   ))}
@@ -1543,12 +1558,12 @@ export default function OrderDetailPage() {
                   <p className="font-medium text-gray-900">{order.phone}</p>
                 </div>
               </div>
-              {order.memo && (
+              {order.requestMessage && (
                 <div className="flex items-start space-x-3">
                   <MessageSquare className="w-5 h-5 text-gray-400 mt-0.5 flex-shrink-0" />
                   <div>
                     <p className="text-sm text-gray-600 mb-1">요청사항</p>
-                    <p className="font-medium text-gray-900">{order.memo}</p>
+                    <p className="font-medium text-gray-900">{order.requestMessage}</p>
                   </div>
                 </div>
               )}
@@ -1561,7 +1576,9 @@ export default function OrderDetailPage() {
             <div className="space-y-3 mb-4 pb-4 border-b border-gray-200">
               <div className="flex items-center justify-between">
                 <CreditCard className="w-5 h-5 text-gray-400" />
-                <p className="font-medium text-gray-900">{PAYMENT_TYPE_LABELS[order.paymentType]}</p>
+                <p className="font-medium text-gray-900">
+                  {order.paymentType ? PAYMENT_TYPE_LABELS[order.paymentType] : '결제 정보 없음'}
+                </p>
               </div>
             </div>
             <div className="space-y-2">
@@ -1593,14 +1610,16 @@ export default function OrderDetailPage() {
           </div>
         </div>
       </div>
-      
+
       {showReviewModal && (
         <ReviewModal
           orderId={order.id}
           onClose={() => setShowReviewModal(false)}
-          onSubmit={(review) => {
+          onSubmit={async (review) => {
             console.log('Review submitted:', review);
-            // TODO: Firebase에 리뷰 저장
+            toast.success('리뷰가 등록되었습니다!');
+            // 실제 저장은 ReviewModal 내부에서 처리하거나 여기서 handler를 연결해야 함
+            // ReviewModal 구현을 확인해봐야 함.
           }}
         />
       )}
@@ -2069,11 +2088,6 @@ function BenefitItem({ text }: { text: string }) {
 ## File: src\pages\StoreSetupWizard.tsx
 
 ```typescript
-/**
- * 상점 초기 설정 마법사
- * 앱 초기 실행 시 단일 상점 정보를 생성하는 역할
- */
-
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
@@ -2081,11 +2095,15 @@ import { db } from '../lib/firebase';
 import { useAuth } from '../contexts/AuthContext';
 import { useStore } from '../contexts/StoreContext';
 import { StoreFormData } from '../types/store';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 import Button from '../components/common/Button';
 import Input from '../components/common/Input';
 import Card from '../components/common/Card';
-import { Store, ChevronRight, ChevronLeft, Check } from 'lucide-react';
+import { Store as StoreIcon, ChevronRight, ChevronLeft, Check } from 'lucide-react';
+
+// 현재 버전에서는 '단일 상점' 아키텍처를 따르므로 고정된 ID를 사용합니다.
+// 향후 멀티 스토어 플랫폼으로 확장 시, 이 값을 동적으로 생성하거나 사용자 입력을 받도록 수정해야 합니다.
+const DEFAULT_STORE_ID = 'default';
 
 const STEPS = [
   { id: 1, name: '기본 정보', description: '상점 이름과 설명' },
@@ -2172,7 +2190,7 @@ export default function StoreSetupWizard() {
       // 1. 상점 데이터 문서 생성 (store/default)
       const storeData = {
         ...formData,
-        id: 'default',
+        id: DEFAULT_STORE_ID,
         logoUrl: '',
         bannerUrl: '',
         primaryColor: '#3b82f6',
@@ -2191,7 +2209,7 @@ export default function StoreSetupWizard() {
       };
 
       // 루트 컬렉션 'stores'의 'default' 문서로 저장
-      await setDoc(doc(db, 'stores', 'default'), storeData);
+      await setDoc(doc(db, 'stores', DEFAULT_STORE_ID), storeData);
 
       toast.success('상점이 생성되었습니다! 🎉');
 

@@ -99,7 +99,7 @@ export default function AdminMenuManagement() {
     <div className="flex min-h-screen bg-gray-50">
       <AdminSidebar />
 
-      <main className="flex-1 p-8">
+      <main className="flex-1 p-4 md:p-8">
         <div className="max-w-7xl mx-auto">
           {/* Header */}
           <div className="mb-8 flex items-center justify-between">

@@ -9,7 +9,7 @@ interface UseFirestoreDocumentResult<T> {
 }
 
 export function useFirestoreDocument<T extends DocumentData>(
-  collectionName: string,
+  collectionName: string | string[],
   documentId: string | null | undefined
 ): UseFirestoreDocumentResult<T> {
   const [data, setData] = useState<T | null>(null);
@@ -24,7 +24,11 @@ export function useFirestoreDocument<T extends DocumentData>(
     }
 
     try {
-      const docRef = doc(db, collectionName, documentId);
+      // 서브컬렉션 지원: 배열로 전달된 경우 (예: ['stores', 'default', 'orders', orderId])
+      // 문자열로 전달된 경우 기존 동작 유지 (예: 'orders', orderId)
+      const docRef = Array.isArray(collectionName)
+        ? doc(db, ...collectionName, documentId)
+        : doc(db, collectionName, documentId);
 
       const unsubscribe = onSnapshot(
         docRef,

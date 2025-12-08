@@ -1,6 +1,6 @@
 ﻿# 08-Page-Admin
 
-Generated: 2025-12-08 18:05:20
+Generated: 2025-12-08 19:25:45
 
 ---
 
@@ -687,11 +687,13 @@ function CouponFormModal({ coupon, onSave, onClose }: CouponFormModalProps) {
 ## File: src\pages\admin\AdminDashboard.tsx
 
 ```typescript
-import { Package, DollarSign, Users, TrendingUp, Clock, CheckCircle2, XCircle } from 'lucide-react';
-import { mockOrders } from '../../data/mockOrders';
-import { mockMenus } from '../../data/mockMenus';
-import { ORDER_STATUS_LABELS } from '../../types/order';
+import { Package, DollarSign, Clock, CheckCircle2 } from 'lucide-react';
 import { useStore } from '../../contexts/StoreContext';
+import { useFirestoreCollection } from '../../hooks/useFirestoreCollection';
+import { getAllOrdersQuery } from '../../services/orderService';
+import { getAllMenusQuery } from '../../services/menuService';
+import { Order, ORDER_STATUS_LABELS } from '../../types/order';
+import { Menu } from '../../types/menu';
 
 import AdminSidebar from '../../components/admin/AdminSidebar';
 import Card from '../../components/common/Card';
@@ -700,19 +702,31 @@ import Badge from '../../components/common/Badge';
 export default function AdminDashboard() {
   const { store } = useStore();
 
-  // Calculate statistics
-  const totalOrders = mockOrders.length;
-  const activeOrders = mockOrders.filter(o => ['접수', '조리중', '배달중'].includes(o.status)).length;
-  const completedOrders = mockOrders.filter(o => o.status === '완료').length;
-  const cancelledOrders = mockOrders.filter(o => o.status === '취소').length;
-  const totalRevenue = mockOrders
-    .filter(o => o.status === '완료')
-    .reduce((sum, o) => sum + o.totalPrice, 0);
-  const todayOrders = mockOrders.filter(o => {
+  const { data: orders, loading: ordersLoading } = useFirestoreCollection<Order>(
+    store?.id ? getAllOrdersQuery(store.id) : null
+  );
+
+  const { data: menus, loading: menusLoading } = useFirestoreCollection<Menu>(
+    store?.id ? getAllMenusQuery(store.id) : null
+  );
+
+  const isLoading = ordersLoading || menusLoading;
+
+  // Calculate statistics based on real data
+  const totalOrders = orders?.length || 0;
+  const activeOrders = orders?.filter(o => ['접수', '조리중', '배달중'].includes(o.status)).length || 0;
+  const completedOrders = orders?.filter(o => o.status === '완료').length || 0;
+  const cancelledOrders = orders?.filter(o => o.status === '취소').length || 0;
+
+  const totalRevenue = orders
+    ?.filter(o => o.status === '완료')
+    .reduce((sum, o) => sum + o.totalPrice, 0) || 0;
+
+  const todayOrders = orders?.filter(o => {
     const today = new Date();
     const orderDate = new Date(o.createdAt);
     return orderDate.toDateString() === today.toDateString();
-  }).length;
+  }).length || 0;
 
   const stats = [
     {
@@ -745,13 +759,36 @@ export default function AdminDashboard() {
     },
   ];
 
-  const recentOrders = mockOrders.slice(0, 5);
+  const recentOrders = orders?.slice(0, 5) || [];
+  const registeredMenusCount = menus?.length || 0;
+  const soldoutMenusCount = menus?.filter(m => m.soldout).length || 0;
+
+  // Calculate average order value (avoid division by zero)
+  const avgOrderValue = completedOrders > 0
+    ? Math.round(totalRevenue / completedOrders)
+    : 0;
+
+  // Calculate cancellation rate
+  const cancelRate = totalOrders > 0
+    ? ((cancelledOrders / totalOrders) * 100).toFixed(1)
+    : '0';
+
+  if (!store && !isLoading) {
+    return (
+      <div className="flex min-h-screen bg-gray-50">
+        <AdminSidebar />
+        <main className="flex-1 p-8 flex items-center justify-center">
+          <p className="text-gray-500">상점 정보를 불러오는 중...</p>
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-screen bg-gray-50">
       <AdminSidebar />
 
-      <main className="flex-1 p-8">
+      <main className="flex-1 p-4 md:p-8">
         <div className="max-w-7xl mx-auto">
           {/* Header */}
           <div className="mb-8">
@@ -766,7 +803,7 @@ export default function AdminDashboard() {
           {/* Stats Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
             {stats.map((stat, idx) => (
-              <StatCard key={idx} {...stat} />
+              <StatCard key={idx} {...stat} loading={isLoading} />
             ))}
           </div>
 
@@ -777,34 +814,41 @@ export default function AdminDashboard() {
                 <h2 className="text-xl font-bold text-gray-900">최근 주문</h2>
                 <Badge variant="primary">{totalOrders}건</Badge>
               </div>
-              <div className="space-y-3">
-                {recentOrders.map((order) => (
-                  <div
-                    key={order.id}
-                    className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
-                  >
-                    <div className="flex-1">
-                      <p className="font-medium text-gray-900 mb-1">주문 #{order.id}</p>
-                      <p className="text-sm text-gray-600">
-                        {order.items.length}개 상품 · {order.totalPrice.toLocaleString()}원
-                      </p>
-                      <p className="text-xs text-gray-500 mt-1">
-                        {new Date(order.createdAt).toLocaleString('ko-KR')}
-                      </p>
-                    </div>
-                    <Badge
-                      variant={
-                        order.status === '완료' ? 'success' :
-                          order.status === '취소' ? 'danger' :
-                            order.status === '배달중' ? 'secondary' :
-                              'primary'
-                      }
+
+              {isLoading ? (
+                <div className="py-8 text-center text-gray-500">로딩 중...</div>
+              ) : recentOrders.length > 0 ? (
+                <div className="space-y-3">
+                  {recentOrders.map((order) => (
+                    <div
+                      key={order.id}
+                      className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
                     >
-                      {ORDER_STATUS_LABELS[order.status]}
-                    </Badge>
-                  </div>
-                ))}
-              </div>
+                      <div className="flex-1">
+                        <p className="font-medium text-gray-900 mb-1">주문 #{order.id.slice(0, 8)}</p>
+                        <p className="text-sm text-gray-600">
+                          {order.items.length}개 상품 · {order.totalPrice.toLocaleString()}원
+                        </p>
+                        <p className="text-xs text-gray-500 mt-1">
+                          {new Date(order.createdAt).toLocaleString('ko-KR')}
+                        </p>
+                      </div>
+                      <Badge
+                        variant={
+                          order.status === '완료' ? 'success' :
+                            order.status === '취소' ? 'danger' :
+                              order.status === '배달중' ? 'secondary' :
+                                'primary'
+                        }
+                      >
+                        {ORDER_STATUS_LABELS[order.status]}
+                      </Badge>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="py-8 text-center text-gray-500">최근 주문 내역이 없습니다.</div>
+              )}
             </Card>
 
             {/* Quick Stats */}
@@ -813,25 +857,25 @@ export default function AdminDashboard() {
               <div className="space-y-4">
                 <QuickStat
                   label="등록된 메뉴"
-                  value={mockMenus.length}
+                  value={isLoading ? '-' : registeredMenusCount}
                   suffix="개"
                   color="blue"
                 />
                 <QuickStat
                   label="품절 메뉴"
-                  value={mockMenus.filter(m => m.soldout).length}
+                  value={isLoading ? '-' : soldoutMenusCount}
                   suffix="개"
                   color="red"
                 />
                 <QuickStat
                   label="평균 주문 금액"
-                  value={Math.round(totalRevenue / (completedOrders || 1)).toLocaleString()}
+                  value={isLoading ? '-' : avgOrderValue.toLocaleString()}
                   suffix="원"
                   color="green"
                 />
                 <QuickStat
                   label="취소율"
-                  value={totalOrders > 0 ? ((cancelledOrders / totalOrders) * 100).toFixed(1) : '0'}
+                  value={isLoading ? '-' : cancelRate}
                   suffix="%"
                   color="orange"
                 />
@@ -844,7 +888,7 @@ export default function AdminDashboard() {
   );
 }
 
-function StatCard({ label, value, icon, color, suffix }: any) {
+function StatCard({ label, value, icon, color, suffix, loading }: any) {
   const colorClasses = {
     blue: 'bg-blue-500',
     green: 'bg-green-500',
@@ -858,8 +902,8 @@ function StatCard({ label, value, icon, color, suffix }: any) {
         <div>
           <p className="text-sm text-gray-600 mb-2">{label}</p>
           <p className="text-3xl font-bold text-gray-900">
-            {value}
-            {suffix && <span className="text-lg text-gray-600 ml-1">{suffix}</span>}
+            {loading ? '-' : value}
+            {!loading && suffix && <span className="text-lg text-gray-600 ml-1">{suffix}</span>}
           </p>
         </div>
         <div className={`w-12 h-12 ${colorClasses} rounded-xl flex items-center justify-center text-white`}>
@@ -1354,7 +1398,7 @@ export default function AdminMenuManagement() {
     <div className="flex min-h-screen bg-gray-50">
       <AdminSidebar />
 
-      <main className="flex-1 p-8">
+      <main className="flex-1 p-4 md:p-8">
         <div className="max-w-7xl mx-auto">
           {/* Header */}
           <div className="mb-8 flex items-center justify-between">

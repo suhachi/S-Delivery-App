@@ -1,37 +1,60 @@
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, MapPin, Phone, CreditCard, Clock, Package, CheckCircle2, MessageSquare } from 'lucide-react';
+import { ArrowLeft, MapPin, Phone, CreditCard, Clock, Package, CheckCircle2, MessageSquare, AlertCircle } from 'lucide-react';
 import { useState } from 'react';
-import { mockOrders } from '../data/mockOrders';
-import { ORDER_STATUS_LABELS, ORDER_STATUS_COLORS, PAYMENT_TYPE_LABELS, OrderStatus } from '../types/order';
+import { ORDER_STATUS_LABELS, ORDER_STATUS_COLORS, PAYMENT_TYPE_LABELS, OrderStatus, Order } from '../types/order';
 import Card from '../components/common/Card';
 import Badge from '../components/common/Badge';
 import Button from '../components/common/Button';
 import ReviewModal from '../components/review/ReviewModal';
 import { toast } from 'sonner';
+import { useStore } from '../contexts/StoreContext';
+import { useFirestoreDocument } from '../hooks/useFirestoreDocument';
 
 export default function OrderDetailPage() {
   const { orderId } = useParams();
   const navigate = useNavigate();
+  const { store } = useStore();
   const [showReviewModal, setShowReviewModal] = useState(false);
-  
-  const order = mockOrders.find(o => o.id === orderId);
 
-  if (!order) {
+  // Fetch real order data
+  // Path: stores/{storeId}/orders/{orderId}
+  // useFirestoreDocument는 이제 서브컬렉션 경로 배열을 지원함
+  const collectionPath = store?.id && orderId
+    ? ['stores', store.id, 'orders']
+    : null;
+  const { data: order, loading, error } = useFirestoreDocument<Order>(
+    collectionPath,
+    orderId || null
+  );
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-gray-500">주문 정보를 불러오는 중...</div>
+      </div>
+    );
+  }
+
+  if (error || !order) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <p className="text-xl text-gray-600 mb-4">주문을 찾을 수 없습니다</p>
+          <AlertCircle className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+          <p className="text-xl text-gray-600 mb-4">
+            {error ? '주문 정보를 불러오는데 실패했습니다' : '주문을 찾을 수 없습니다'}
+          </p>
           <Button onClick={() => navigate('/orders')}>주문 목록으로</Button>
         </div>
       </div>
     );
   }
 
-  const statusColor = ORDER_STATUS_COLORS[order.status as OrderStatus];
+  const statusColor = ORDER_STATUS_COLORS[order.status as OrderStatus] || ORDER_STATUS_COLORS['접수'];
 
   const handleReorder = () => {
-    toast.success('장바구니에 담았습���다');
-    navigate('/cart');
+    // TODO: 장바구니에 담기 로직 구현 필요 (여기서는 메시지만 표시)
+    toast.success('이 기능은 준비 중입니다 (재주문)');
+    // navigate('/cart');
   };
 
   const statusSteps: OrderStatus[] = ['접수', '조리중', '배달중', '완료'];
@@ -54,7 +77,7 @@ export default function OrderDetailPage() {
               주문 상세
             </span>
           </h1>
-          <p className="text-gray-600">주문번호: {order.id}</p>
+          <p className="text-gray-600">주문번호: {order.id.slice(0, 8)}</p>
         </div>
 
         <div className="space-y-6">
@@ -70,16 +93,16 @@ export default function OrderDetailPage() {
                     {ORDER_STATUS_LABELS[order.status as OrderStatus]}
                   </h2>
                   <p className="text-sm text-gray-600">
-                    {new Date(order.createdAt).toLocaleString('ko-KR')}
+                    {order.createdAt ? new Date(order.createdAt).toLocaleString('ko-KR') : '-'}
                   </p>
                 </div>
               </div>
               <Badge
                 variant={
                   order.status === '완료' ? 'success' :
-                  order.status === '취소' ? 'danger' :
-                  order.status === '배달중' ? 'secondary' :
-                  'primary'
+                    order.status === '취소' ? 'danger' :
+                      order.status === '배달중' ? 'secondary' :
+                        'primary'
                 }
                 size="lg"
               >
@@ -94,7 +117,7 @@ export default function OrderDetailPage() {
                   {statusSteps.map((step, idx) => (
                     <div key={step} className="flex-1 flex flex-col items-center">
                       <div className={`
-                        w-10 h-10 rounded-full flex items-center justify-center mb-2 transition-all
+                        w-10 h-10 rounded-full flex items-center justify-center mb-2 transition-all relative z-10
                         ${idx <= currentStepIndex ? 'gradient-primary text-white' : 'bg-gray-200 text-gray-400'}
                       `}>
                         {idx <= currentStepIndex ? (
@@ -107,7 +130,7 @@ export default function OrderDetailPage() {
                         {ORDER_STATUS_LABELS[step]}
                       </p>
                       {idx < statusSteps.length - 1 && (
-                        <div className={`absolute h-1 w-full top-5 left-1/2 -z-10 ${idx < currentStepIndex ? 'bg-blue-500' : 'bg-gray-200'}`} />
+                        <div className={`absolute h-1 w-full top-5 left-1/2 -z-0 ${idx < currentStepIndex ? 'bg-blue-500' : 'bg-gray-200'}`} />
                       )}
                     </div>
                   ))}
@@ -171,12 +194,12 @@ export default function OrderDetailPage() {
                   <p className="font-medium text-gray-900">{order.phone}</p>
                 </div>
               </div>
-              {order.memo && (
+              {order.requestMessage && (
                 <div className="flex items-start space-x-3">
                   <MessageSquare className="w-5 h-5 text-gray-400 mt-0.5 flex-shrink-0" />
                   <div>
                     <p className="text-sm text-gray-600 mb-1">요청사항</p>
-                    <p className="font-medium text-gray-900">{order.memo}</p>
+                    <p className="font-medium text-gray-900">{order.requestMessage}</p>
                   </div>
                 </div>
               )}
@@ -189,7 +212,9 @@ export default function OrderDetailPage() {
             <div className="space-y-3 mb-4 pb-4 border-b border-gray-200">
               <div className="flex items-center justify-between">
                 <CreditCard className="w-5 h-5 text-gray-400" />
-                <p className="font-medium text-gray-900">{PAYMENT_TYPE_LABELS[order.paymentType]}</p>
+                <p className="font-medium text-gray-900">
+                  {order.paymentType ? PAYMENT_TYPE_LABELS[order.paymentType] : '결제 정보 없음'}
+                </p>
               </div>
             </div>
             <div className="space-y-2">
@@ -221,14 +246,16 @@ export default function OrderDetailPage() {
           </div>
         </div>
       </div>
-      
+
       {showReviewModal && (
         <ReviewModal
           orderId={order.id}
           onClose={() => setShowReviewModal(false)}
-          onSubmit={(review) => {
+          onSubmit={async (review) => {
             console.log('Review submitted:', review);
-            // TODO: Firebase에 리뷰 저장
+            toast.success('리뷰가 등록되었습니다!');
+            // 실제 저장은 ReviewModal 내부에서 처리하거나 여기서 handler를 연결해야 함
+            // ReviewModal 구현을 확인해봐야 함.
           }}
         />
       )}

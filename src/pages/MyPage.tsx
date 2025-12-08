@@ -4,60 +4,50 @@ import { useAuth } from '../contexts/AuthContext';
 import { useStore } from '../contexts/StoreContext';
 import { User, ShoppingBag, Ticket, Bell, Store, ChevronRight, LogOut } from 'lucide-react';
 import Card from '../components/common/Card';
-import Button from '../components/common/Button';
 import { Order } from '../types/order';
 import { Coupon } from '../types/coupon';
+import { useFirestoreCollection } from '../hooks/useFirestoreCollection';
+import { getUserOrdersQuery } from '../services/orderService';
+import { getActiveCouponsQuery } from '../services/couponService';
+import { toast } from 'sonner';
 
 export default function MyPage() {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
-  const { currentStore } = useStore();
-  const [recentOrders, setRecentOrders] = useState<Order[]>([]);
-  const [availableCoupons, setAvailableCoupons] = useState<Coupon[]>([]);
+  const { store } = useStore();
   const [notificationEnabled, setNotificationEnabled] = useState(false);
 
-  // 가게 정보 기본값 (currentStore가 없을 때)
-  const storeInfo = currentStore || {
+  // 상점 정보 (store가 로딩 중이거나 없으면 안전하게 처리)
+  const storeInfo = store || {
     id: 'demo-store',
-    name: '커스컴배달',
-    phone: '02-1234-5678',
-    address: '서울시 강남구 테헤란로 123',
-    businessHours: {
-      monday: { open: '10:00', close: '22:00', closed: false },
-      tuesday: { open: '10:00', close: '22:00', closed: false },
-      wednesday: { open: '10:00', close: '22:00', closed: false },
-      thursday: { open: '10:00', close: '22:00', closed: false },
-      friday: { open: '10:00', close: '22:00', closed: false },
-      saturday: { open: '11:00', close: '21:00', closed: false },
-      sunday: { open: '11:00', close: '21:00', closed: false },
-    },
+    name: '상점 정보 로딩 중...',
+    phone: '',
+    address: '',
+    businessHours: undefined,
   };
 
-  useEffect(() => {
-    // TODO: Firestore에서 최근 주문 3개 조회
-    // const ordersQuery = query(
-    //   collection(db, 'stores', currentStore.id, 'orders'),
-    //   where('userId', '==', user?.id),
-    //   orderBy('createdAt', 'desc'),
-    //   limit(3)
-    // );
-    
-    // TODO: 사용 가능한 쿠폰 조회
-    // const couponsQuery = query(
-    //   collection(db, 'stores', currentStore.id, 'userCoupons'),
-    //   where('userId', '==', user?.id),
-    //   where('usedAt', '==', null)
-    // );
+  // 1. 최근 주문 조회 (실데이터)
+  // user와 store가 있을 때만 쿼리 생성
+  const ordersQuery = (store?.id && user?.id)
+    ? getUserOrdersQuery(store.id, user.id)
+    : null;
 
-    // Mock 데이터 사용
-    setRecentOrders([]);
-    setAvailableCoupons([]);
-    
-    // 알림 설정 상태 확인
+  const { data: allOrders, loading: ordersLoading } = useFirestoreCollection<Order>(ordersQuery);
+
+  // 최근 3개만 잘라서 표시
+  const recentOrders = allOrders ? allOrders.slice(0, 3) : [];
+
+  // 2. 사용 가능한 쿠폰 조회 (실데이터)
+  // 현재는 "상점의 활성 쿠폰"을 모두 보여주는 정책 (개인별 쿠폰함 기능이 아직 없다면)
+  const couponsQuery = store?.id ? getActiveCouponsQuery(store.id) : null;
+  const { data: availableCoupons, loading: couponsLoading } = useFirestoreCollection<Coupon>(couponsQuery);
+
+  useEffect(() => {
+    // 알림 설정 상태 확인 (단순 브라우저 API 체크)
     if ('Notification' in window) {
       setNotificationEnabled(Notification.permission === 'granted');
     }
-  }, [user, currentStore]);
+  }, []);
 
   const handleLogout = async () => {
     try {
@@ -65,25 +55,25 @@ export default function MyPage() {
       navigate('/');
     } catch (error) {
       console.error('로그아웃 실패:', error);
+      toast.error('로그아웃 중 오류가 발생했습니다.');
     }
   };
 
   const handleNotificationToggle = async () => {
     if (!('Notification' in window)) {
-      alert('이 브라우저는 알림을 지원하지 않습니다.');
+      toast.error('이 브라우저는 알림을 지원하지 않습니다.');
       return;
     }
 
     if (Notification.permission === 'granted') {
-      // 알림 비활성화는 브라우저 설정에서 해야 함
-      alert('알림을 비활성화하려면 브라우저 설정에서 변경해주세요.');
+      toast.info('알림을 비활성화하려면 브라우저 설정에서 변경해주세요.');
     } else {
       const permission = await Notification.requestPermission();
       setNotificationEnabled(permission === 'granted');
-      
+
       if (permission === 'granted') {
-        // TODO: FCM 토큰 발급 및 저장
-        alert('알림이 활성화되었습니다!');
+        // 추후 FCM 토큰 발급 로직 추가 예정
+        toast.success('알림이 활성화되었습니다!');
       }
     }
   };
@@ -128,8 +118,12 @@ export default function MyPage() {
                 <ChevronRight className="w-4 h-4" />
               </button>
             </div>
-            
-            {recentOrders.length > 0 ? (
+
+            {ordersLoading ? (
+              <div className="text-center py-8 text-gray-500">
+                <p className="text-sm">로딩 중...</p>
+              </div>
+            ) : recentOrders.length > 0 ? (
               <div className="space-y-3">
                 {recentOrders.map((order) => (
                   <div
@@ -162,10 +156,16 @@ export default function MyPage() {
             <div className="flex items-center gap-2 mb-4">
               <Ticket className="w-5 h-5 text-orange-600" />
               <h2 className="text-lg">쿠폰함</h2>
-              <span className="text-sm text-gray-500">({availableCoupons.length}장)</span>
+              <span className="text-sm text-gray-500">
+                ({availableCoupons ? availableCoupons.length : 0}장)
+              </span>
             </div>
-            
-            {availableCoupons.length > 0 ? (
+
+            {couponsLoading ? (
+              <div className="text-center py-8 text-gray-500">
+                <p className="text-sm">로딩 중...</p>
+              </div>
+            ) : (availableCoupons && availableCoupons.length > 0) ? (
               <div className="space-y-2">
                 {availableCoupons.map((coupon) => (
                   <div
@@ -175,7 +175,7 @@ export default function MyPage() {
                     <div>
                       <p className="font-medium">{coupon.name}</p>
                       <p className="text-xs text-gray-500">
-                        {new Date(coupon.validUntil).toLocaleDateString('ko-KR')}까지
+                        {coupon.validUntil ? new Date(coupon.validUntil).toLocaleDateString('ko-KR') + '까지' : '유효기간 없음'}
                       </p>
                     </div>
                     <div className="text-right">
@@ -208,14 +208,12 @@ export default function MyPage() {
             </div>
             <button
               onClick={handleNotificationToggle}
-              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                notificationEnabled ? 'bg-blue-600' : 'bg-gray-300'
-              }`}
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${notificationEnabled ? 'bg-blue-600' : 'bg-gray-300'
+                }`}
             >
               <span
-                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                  notificationEnabled ? 'translate-x-6' : 'translate-x-1'
-                }`}
+                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${notificationEnabled ? 'translate-x-6' : 'translate-x-1'
+                  }`}
               />
             </button>
           </Card>
@@ -227,27 +225,27 @@ export default function MyPage() {
                 <Store className="w-5 h-5 text-purple-600" />
                 <h2 className="text-lg">가게 정보</h2>
               </div>
-              
+
               <div className="space-y-3">
                 <div>
                   <p className="text-sm text-gray-500">상점명</p>
                   <p className="font-medium">{storeInfo.name}</p>
                 </div>
-                
+
                 {storeInfo.phone && (
                   <div>
                     <p className="text-sm text-gray-500">전화번호</p>
                     <p className="font-medium">{storeInfo.phone}</p>
                   </div>
                 )}
-                
+
                 {storeInfo.address && (
                   <div>
                     <p className="text-sm text-gray-500">주소</p>
                     <p className="font-medium">{storeInfo.address}</p>
                   </div>
                 )}
-                
+
                 {storeInfo.businessHours && (
                   <div>
                     <p className="text-sm text-gray-500 mb-2">영업시간</p>

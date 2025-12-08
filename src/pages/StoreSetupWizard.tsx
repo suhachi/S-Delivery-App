@@ -1,8 +1,3 @@
-/**
- * 상점 초기 설정 마법사
- * 앱 초기 실행 시 단일 상점 정보를 생성하는 역할
- */
-
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
@@ -10,11 +5,15 @@ import { db } from '../lib/firebase';
 import { useAuth } from '../contexts/AuthContext';
 import { useStore } from '../contexts/StoreContext';
 import { StoreFormData } from '../types/store';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 import Button from '../components/common/Button';
 import Input from '../components/common/Input';
 import Card from '../components/common/Card';
-import { Store, ChevronRight, ChevronLeft, Check } from 'lucide-react';
+import { Store as StoreIcon, ChevronRight, ChevronLeft, Check } from 'lucide-react';
+
+// 현재 버전에서는 '단일 상점' 아키텍처를 따르므로 고정된 ID를 사용합니다.
+// 향후 멀티 스토어 플랫폼으로 확장 시, 이 값을 동적으로 생성하거나 사용자 입력을 받도록 수정해야 합니다.
+const DEFAULT_STORE_ID = 'default';
 
 const STEPS = [
   { id: 1, name: '기본 정보', description: '상점 이름과 설명' },
@@ -101,7 +100,7 @@ export default function StoreSetupWizard() {
       // 1. 상점 데이터 문서 생성 (store/default)
       const storeData = {
         ...formData,
-        id: 'default',
+        id: DEFAULT_STORE_ID,
         logoUrl: '',
         bannerUrl: '',
         primaryColor: '#3b82f6',
@@ -120,7 +119,7 @@ export default function StoreSetupWizard() {
       };
 
       // 루트 컬렉션 'stores'의 'default' 문서로 저장
-      await setDoc(doc(db, 'stores', 'default'), storeData);
+      await setDoc(doc(db, 'stores', DEFAULT_STORE_ID), storeData);
 
       toast.success('상점이 생성되었습니다! 🎉');
 
