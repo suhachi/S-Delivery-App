@@ -1,6 +1,6 @@
 ﻿# 05-Service-Layer
 
-Generated: 2025-12-08 19:25:45
+Generated: 2025-12-09 13:30:59
 
 ---
 
@@ -493,7 +493,7 @@ export async function createOrder(storeId: string, orderData: Omit<Order, 'id' |
   try {
     const docRef = await addDoc(getOrderCollection(storeId), {
       ...orderData,
-      status: '접수' as OrderStatus,
+      status: orderData.status || '접수', // status가 있으면 사용, 없으면 '접수'
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     });

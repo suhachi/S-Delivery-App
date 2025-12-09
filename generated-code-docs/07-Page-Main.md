@@ -1,6 +1,6 @@
 ﻿# 07-Page-Main
 
-Generated: 2025-12-08 19:25:45
+Generated: 2025-12-09 13:30:59
 
 ---
 
@@ -254,6 +254,7 @@ function CartItem({ item, onRemove, onUpdateQuantity }: CartItemProps) {
 ## File: src\pages\CheckoutPage.tsx
 
 ```typescript
+/// <reference types="vite/client" />
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { MapPin, Phone, CreditCard, Wallet, DollarSign, ArrowLeft, CheckCircle2, ShoppingBag, Package, Ticket, X } from 'lucide-react';
@@ -266,8 +267,11 @@ import Button from '../components/common/Button';
 import Input from '../components/common/Input';
 import { Coupon } from '../types/coupon';
 import { createOrder } from '../services/orderService';
+import { OrderStatus } from '../types/order';
 import { useFirestoreCollection } from '../hooks/useFirestoreCollection';
 import { getCouponsPath } from '../lib/firestorePaths';
+import { collection } from 'firebase/firestore';
+import { db } from '../lib/firebase';
 
 type OrderType = '배달주문' | '포장주문';
 
@@ -275,13 +279,14 @@ export default function CheckoutPage() {
   const navigate = useNavigate();
   const { items, getTotalPrice, clearCart } = useCart();
   const { user } = useAuth();
-  const { storeId } = useStore();
-  
+  const { store } = useStore();
+  const storeId = store?.id;
+
   // Firestore에서 쿠폰 조회
   const { data: coupons } = useFirestoreCollection<Coupon>(
-    storeId ? getCouponsPath(storeId) : null
+    storeId ? collection(db, getCouponsPath(storeId)) : null
   );
-  
+
   const [orderType, setOrderType] = useState<OrderType>('배달주문');
   const [selectedCoupon, setSelectedCoupon] = useState<Coupon | null>(null);
   const [formData, setFormData] = useState({
@@ -290,7 +295,7 @@ export default function CheckoutPage() {
     memo: '',
     paymentType: '앱결제' as '앱결제' | '만나서카드' | '만나서현금' | '방문시결제',
   });
-  
+
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // 주문 타입에 따른 배달비 계산
@@ -311,12 +316,12 @@ export default function CheckoutPage() {
   // 쿠폰 할인 금액 계산
   const calculateDiscount = (coupon: Coupon | null): number => {
     if (!coupon) return 0;
-    
+
     const itemsTotal = getTotalPrice();
-    
+
     if (coupon.discountType === 'percentage') {
       const discount = Math.floor(itemsTotal * (coupon.discountValue / 100));
-      return coupon.maxDiscountAmount 
+      return coupon.maxDiscountAmount
         ? Math.min(discount, coupon.maxDiscountAmount)
         : discount;
     } else {
@@ -328,20 +333,20 @@ export default function CheckoutPage() {
   const finalTotal = getTotalPrice() + deliveryFee - discountAmount;
 
   // 주문 타입에 따른 결제 방법
-  const paymentTypes = orderType === '배달주문' 
+  const paymentTypes = orderType === '배달주문'
     ? [
-        { value: '앱결제', label: '앱 결제', icon: <CreditCard className="w-5 h-5" /> },
-        { value: '만나서카드', label: '만나서 카드', icon: <CreditCard className="w-5 h-5" /> },
-        { value: '만나서현금', label: '만나서 현금', icon: <Wallet className="w-5 h-5" /> },
-      ]
+      { value: '앱결제', label: '앱 결제', icon: <CreditCard className="w-5 h-5" /> },
+      { value: '만나서카드', label: '만나서 카드', icon: <CreditCard className="w-5 h-5" /> },
+      { value: '만나서현금', label: '만나서 현금', icon: <Wallet className="w-5 h-5" /> },
+    ]
     : [
-        { value: '앱결제', label: '앱 결제', icon: <CreditCard className="w-5 h-5" /> },
-        { value: '방문시결제', label: '방문시 결제', icon: <DollarSign className="w-5 h-5" /> },
-      ];
+      { value: '앱결제', label: '앱 결제', icon: <CreditCard className="w-5 h-5" /> },
+      { value: '방문시결제', label: '방문시 결제', icon: <DollarSign className="w-5 h-5" /> },
+    ];
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!storeId) {
       toast.error('상점 정보를 찾을 수 없습니다');
       return;
@@ -352,19 +357,19 @@ export default function CheckoutPage() {
       navigate('/login');
       return;
     }
-    
+
     // 배달주문 검증
     if (orderType === '배달주문' && (!formData.address || !formData.phone)) {
       toast.error('배달 주소와 연락처를 입력해주세요');
       return;
     }
-    
+
     // 포장주문 검증
     if (orderType === '포장주문' && !formData.phone) {
       toast.error('연락처를 입력해주세요');
       return;
     }
-    
+
     if (getTotalPrice() < 10000) {
       toast.error('최소 주문 금액은 10,000원입니다');
       return;
@@ -373,10 +378,9 @@ export default function CheckoutPage() {
     setIsSubmitting(true);
 
     try {
-      // Create order object
-      const orderData = {
-        userId: user.uid,
-        userDisplayName: user.displayName || user.email || '사용자',
+      const pendingOrderData = {
+        userId: user.id,
+        userDisplayName: user.displayName || '사용자',
         items,
         orderType,
         itemsPrice: getTotalPrice(),
@@ -391,20 +395,53 @@ export default function CheckoutPage() {
         couponName: selectedCoupon?.name || null,
         adminDeleted: false,
         reviewed: false,
+        paymentStatus: '결제대기' as const, // 초기 상태
       };
-      
-      // Save to Firestore
-      await createOrder(storeId, orderData);
-      
-      clearCart();
-      toast.success('주문이 완료되었습니다! 🎉');
-      navigate('/orders');
+
+      // 1. 주문을 먼저 '결제대기' 상태로 생성 (createOrder 내부에서 status: '결제대기' 처리 필요하거나 여기서 명시)
+      // orderService의 createOrder가 status를 덮어쓰지 않도록 수정 필요.
+      // 일단 createOrder 호출 시 status 필드를 포함해서 보냅니다.
+      const orderId = await createOrder(storeId, {
+        ...pendingOrderData,
+        status: '결제대기' as OrderStatus
+      });
+
+      // 2. 결제 수단이 '앱결제'인 경우 NICEPAY 호출
+      if (formData.paymentType === '앱결제') {
+        const { requestNicepayPayment } = await import('../lib/nicepayClient');
+
+        await requestNicepayPayment({
+          clientId: import.meta.env.VITE_NICEPAY_CLIENT_ID,
+          method: 'card',
+          orderId: orderId,
+          amount: finalTotal,
+          goodsName: items.length > 1 ? `${items[0].name} 외 ${items.length - 1}건` : items[0].name,
+          buyerName: user.displayName || '고객',
+          buyerEmail: user.email || '',
+          buyerTel: formData.phone,
+          returnUrl: import.meta.env.VITE_NICEPAY_RETURN_URL || `${window.location.origin}/nicepay/return`,
+        });
+
+        // NICEPAY 호출 후에는 여기서 리다이렉트되므로 추가 로직 불필요
+      } else {
+        // 만나서 결제인 경우 (기존 로직 유지)
+        // 단, 상태는 '접수'로 바로 넘어가야 함 -> createOrder 수정 필요하거나 update 필요
+        // 여기서는 간단히 '접수'로 다시 업데이트해줌
+        const { updateOrderStatus } = await import('../services/orderService');
+        await updateOrderStatus(storeId, orderId, '접수');
+
+        clearCart();
+        toast.success('주문이 접수되었습니다! 🎉');
+        navigate('/orders');
+      }
+
     } catch (error) {
       console.error('Order creation error:', error);
       toast.error('주문 처리 중 오류가 발생했습니다');
-    } finally {
       setIsSubmitting(false);
     }
+    // finally: 앱결제 시에는 리다이렉트하므로 finally에서 submitting을 false로 돌리면 안될 수도 있음.
+    // 하지만 에러 발생 시에는 꺼야 함. isSubmitting 상태 관리가 중요.
   };
 
   return (
@@ -442,10 +479,9 @@ export default function CheckoutPage() {
                     }}
                     className={`
                       flex flex-col items-center justify-center p-6 rounded-lg border-2 transition-all
-                      ${
-                        orderType === '배달주문'
-                          ? 'border-blue-500 bg-blue-50 text-blue-700'
-                          : 'border-gray-200 hover:border-gray-300 text-gray-700'
+                      ${orderType === '배달주문'
+                        ? 'border-blue-500 bg-blue-50 text-blue-700'
+                        : 'border-gray-200 hover:border-gray-300 text-gray-700'
                       }
                     `}
                   >
@@ -461,10 +497,9 @@ export default function CheckoutPage() {
                     }}
                     className={`
                       flex flex-col items-center justify-center p-6 rounded-lg border-2 transition-all
-                      ${
-                        orderType === '포장주문'
-                          ? 'border-blue-500 bg-blue-50 text-blue-700'
-                          : 'border-gray-200 hover:border-gray-300 text-gray-700'
+                      ${orderType === '포장주문'
+                        ? 'border-blue-500 bg-blue-50 text-blue-700'
+                        : 'border-gray-200 hover:border-gray-300 text-gray-700'
                       }
                     `}
                   >
@@ -538,10 +573,9 @@ export default function CheckoutPage() {
                       onClick={() => setFormData({ ...formData, paymentType: type.value as any })}
                       className={`
                         flex items-center justify-center space-x-2 p-4 rounded-lg border-2 transition-all
-                        ${
-                          formData.paymentType === type.value
-                            ? 'border-blue-500 bg-blue-50 text-blue-700'
-                            : 'border-gray-200 hover:border-gray-300 text-gray-700'
+                        ${formData.paymentType === type.value
+                          ? 'border-blue-500 bg-blue-50 text-blue-700'
+                          : 'border-gray-200 hover:border-gray-300 text-gray-700'
                         }
                       `}
                     >
@@ -570,7 +604,7 @@ export default function CheckoutPage() {
                     </button>
                   )}
                 </h2>
-                
+
                 {selectedCoupon && (
                   <div className="mb-4 p-4 bg-gradient-to-r from-orange-50 to-red-50 border-2 border-orange-300 rounded-lg">
                     <div className="flex items-center justify-between">
@@ -588,7 +622,7 @@ export default function CheckoutPage() {
                     </div>
                   </div>
                 )}
-                
+
                 <div className="space-y-2">
                   {availableCoupons.length > 0 ? (
                     <>
@@ -599,10 +633,9 @@ export default function CheckoutPage() {
                           onClick={() => setSelectedCoupon(coupon)}
                           className={`
                             w-full p-4 rounded-lg border-2 transition-all text-left
-                            ${
-                              selectedCoupon?.id === coupon.id
-                                ? 'border-orange-500 bg-orange-50'
-                                : 'border-gray-200 hover:border-orange-300 bg-white hover:bg-orange-50/50'
+                            ${selectedCoupon?.id === coupon.id
+                              ? 'border-orange-500 bg-orange-50'
+                              : 'border-gray-200 hover:border-orange-300 bg-white hover:bg-orange-50/50'
                             }
                           `}
                         >
@@ -673,7 +706,7 @@ export default function CheckoutPage() {
             <div className="lg:col-span-1">
               <Card className="sticky top-24">
                 <h2 className="text-xl font-bold text-gray-900 mb-4">결제 금액</h2>
-                
+
                 <div className="space-y-3 mb-6 pb-6 border-b border-gray-200">
                   <div className="flex items-center justify-between text-gray-600">
                     <span>상품 금액</span>
@@ -753,34 +786,34 @@ export default function LoginPage() {
 
   const validate = () => {
     const newErrors: { email?: string; password?: string } = {};
-    
+
     if (!email) {
       newErrors.email = '이메일을 입력해주세요';
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       newErrors.email = '올바른 이메일 형식이 아닙니다';
     }
-    
+
     if (!password) {
       newErrors.password = '비밀번호를 입력해주세요';
     } else if (password.length < 6) {
       newErrors.password = '비밀번호는 최소 6자 이상이어야 합니다';
     }
-    
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!validate()) return;
-    
+
     setIsLoading(true);
-    
+
     try {
       await login(email, password);
       toast.success('로그인 성공!');
-      navigate('/menu');
+      navigate('/');
     } catch (error: any) {
       toast.error(error.message || '로그인에 실패했습니다');
     } finally {
@@ -828,7 +861,7 @@ export default function LoginPage() {
               icon={<Mail className="w-5 h-5" />}
               autoComplete="email"
             />
-            
+
             <Input
               label="비밀번호"
               type="password"
@@ -919,22 +952,23 @@ import MenuCard from '../components/menu/MenuCard';
 import Input from '../components/common/Input';
 import { useStore } from '../contexts/StoreContext';
 import { useFirestoreCollection } from '../hooks/useFirestoreCollection';
-import { getMenusPath } from '../lib/firestorePaths';
+import { getAllMenusQuery } from '../services/menuService';
 import { Menu } from '../types/menu';
 
 export default function MenuPage() {
-  const { storeId } = useStore();
+  const { store } = useStore();
+  const storeId = store?.id;
   const [selectedCategory, setSelectedCategory] = useState('전체');
   const [searchQuery, setSearchQuery] = useState('');
 
   // Firestore에서 메뉴 조회
   const { data: menus, loading } = useFirestoreCollection<Menu>(
-    storeId ? getMenusPath(storeId) : null
+    storeId ? getAllMenusQuery(storeId) : null
   );
 
   const filteredMenus = useMemo(() => {
     if (!menus) return [];
-    
+
     let filtered = menus;
 
     // Category filter
@@ -957,7 +991,7 @@ export default function MenuPage() {
   return (
     <div className="min-h-screen bg-gray-50 pb-8">
       <CategoryBar selected={selectedCategory} onSelect={setSelectedCategory} />
-      
+
       <div className="py-6">
         {/* Header - 모바일 최적화 */}
         <div className="container mx-auto px-4 mb-6">
@@ -1000,7 +1034,7 @@ export default function MenuPage() {
                 ))}
               </div>
             </div>
-            
+
             {/* 데스크톱: 그리드 */}
             <div className="hidden md:block container mx-auto px-4">
               <div className="grid grid-cols-2 lg:grid-cols-3 gap-6">
@@ -1046,7 +1080,7 @@ import { toast } from 'sonner';
 export default function MyPage() {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
-  const { currentStore: store } = useStore();
+  const { store } = useStore();
   const [notificationEnabled, setNotificationEnabled] = useState(false);
 
   // 상점 정보 (store가 로딩 중이거나 없으면 안전하게 처리)
@@ -1060,8 +1094,8 @@ export default function MyPage() {
 
   // 1. 최근 주문 조회 (실데이터)
   // user와 store가 있을 때만 쿼리 생성
-  const ordersQuery = (store?.id && user?.uid)
-    ? getUserOrdersQuery(store.id, user.uid)
+  const ordersQuery = (store?.id && user?.id)
+    ? getUserOrdersQuery(store.id, user.id)
     : null;
 
   const { data: allOrders, loading: ordersLoading } = useFirestoreCollection<Order>(ordersQuery);
@@ -1383,13 +1417,19 @@ import { useFirestoreDocument } from '../hooks/useFirestoreDocument';
 export default function OrderDetailPage() {
   const { orderId } = useParams();
   const navigate = useNavigate();
-  const { currentStore: store } = useStore();
+  const { store } = useStore();
   const [showReviewModal, setShowReviewModal] = useState(false);
 
   // Fetch real order data
   // Path: stores/{storeId}/orders/{orderId}
-  const collectionPath = store?.id ? `stores/${store.id}/orders` : '';
-  const { data: order, loading, error } = useFirestoreDocument<Order>(collectionPath, orderId);
+  // useFirestoreDocument는 이제 서브컬렉션 경로 배열을 지원함
+  const collectionPath = store?.id && orderId
+    ? ['stores', store.id, 'orders']
+    : null;
+  const { data: order, loading, error } = useFirestoreDocument<Order>(
+    collectionPath,
+    orderId || null
+  );
 
   if (loading) {
     return (
@@ -1644,28 +1684,35 @@ import ReviewModal from '../components/review/ReviewModal';
 import { useAuth } from '../contexts/AuthContext';
 import { useStore } from '../contexts/StoreContext';
 import { useFirestoreCollection } from '../hooks/useFirestoreCollection';
-import { getOrdersPath } from '../lib/firestorePaths';
+import { getUserOrdersQuery } from '../services/orderService';
 import { Order } from '../types/order';
-import { query, collection, where, orderBy } from 'firebase/firestore';
-import { db } from '../lib/firebase';
 
 export default function OrdersPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { storeId } = useStore();
+  const { store } = useStore();
   const [filter, setFilter] = useState<OrderStatus | '전체'>('전체');
-  
+
   // Firestore에서 현재 사용자의 주문 조회
-  const { data: allOrders, loading } = useFirestoreCollection<Order>(
-    storeId && user ? getOrdersPath(storeId) : null,
-    storeId && user ? [where('userId', '==', user.uid), orderBy('createdAt', 'desc')] : undefined
-  );
-  
-  const filteredOrders = filter === '전체' 
+  const ordersQuery = (store?.id && user?.id)
+    ? getUserOrdersQuery(store.id, user.id)
+    : null;
+
+  const { data: allOrders, loading } = useFirestoreCollection<Order>(ordersQuery);
+
+  const filteredOrders = filter === '전체'
     ? (allOrders || [])
     : (allOrders || []).filter(order => order.status === filter);
 
   const filters: (OrderStatus | '전체')[] = ['전체', '접수', '조리중', '배달중', '완료', '취소'];
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-gray-500">주문 내역을 불러오는 중...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
@@ -1688,10 +1735,9 @@ export default function OrdersPage() {
               onClick={() => setFilter(status)}
               className={`
                 px-4 py-2 rounded-lg whitespace-nowrap transition-all flex-shrink-0
-                ${
-                  filter === status
-                    ? 'gradient-primary text-white shadow-md'
-                    : 'bg-white text-gray-700 border border-gray-200 hover:border-blue-500'
+                ${filter === status
+                  ? 'gradient-primary text-white shadow-md'
+                  : 'bg-white text-gray-700 border border-gray-200 hover:border-blue-500'
                 }
               `}
             >
@@ -1728,10 +1774,10 @@ export default function OrdersPage() {
   );
 }
 
-function OrderCard({ order, onClick }: { order: any; onClick: () => void }) {
+function OrderCard({ order, onClick }: { order: Order; onClick: () => void }) {
   const [showReviewModal, setShowReviewModal] = useState(false);
   const statusColor = ORDER_STATUS_COLORS[order.status as OrderStatus];
-  
+
   const getStatusIcon = (status: OrderStatus) => {
     switch (status) {
       case '접수':
@@ -1776,16 +1822,16 @@ function OrderCard({ order, onClick }: { order: any; onClick: () => void }) {
             </div>
             <Badge variant={
               order.status === '완료' ? 'success' :
-              order.status === '취소' ? 'danger' :
-              order.status === '배달중' ? 'secondary' :
-              'primary'
+                order.status === '취소' ? 'danger' :
+                  order.status === '배달중' ? 'secondary' :
+                    'primary'
             }>
               {ORDER_STATUS_LABELS[order.status as OrderStatus]}
             </Badge>
           </div>
 
           <div className="space-y-2 mb-4 pb-4 border-b border-gray-200">
-            {order.items.map((item: any, idx: number) => (
+            {order.items.map((item, idx) => (
               <div key={idx} className="flex items-center justify-between">
                 <div className="flex items-center space-x-3">
                   {item.imageUrl && (
@@ -1799,7 +1845,7 @@ function OrderCard({ order, onClick }: { order: any; onClick: () => void }) {
                   </div>
                 </div>
                 <p className="text-sm font-semibold text-gray-900">
-                  {((item.price + (item.options?.reduce((sum: number, opt: any) => sum + opt.price, 0) || 0)) * item.quantity).toLocaleString()}원
+                  {((item.price + (item.options?.reduce((sum: number, opt) => sum + opt.price, 0) || 0)) * item.quantity).toLocaleString()}원
                 </p>
               </div>
             ))}
@@ -2208,13 +2254,32 @@ export default function StoreSetupWizard() {
         updatedAt: serverTimestamp(),
       };
 
-      // 루트 컬렉션 'stores'의 'default' 문서로 저장
+      // 1. 상점 문서 생성 (단일 상점 모드: 'default' ID 사용)
       await setDoc(doc(db, 'stores', DEFAULT_STORE_ID), storeData);
 
-      toast.success('상점이 생성되었습니다! 🎉');
+      // 2. 관리자-상점 매핑 생성 (권한 부여용)
+      // 이 매핑이 있어야 firestore.rules의 isStoreOwner()가 true를 반환하여 수정 권한을 가짐
+      if (user?.id) {
+        const adminStoreId = `${user.id}_${DEFAULT_STORE_ID}`;
+        await setDoc(doc(db, 'adminStores', adminStoreId), {
+          adminUid: user.id,
+          storeId: DEFAULT_STORE_ID,
+          role: 'owner',
+          createdAt: serverTimestamp(),
+        });
 
-      // 2. 관리자 페이지로 이동
+        // 3. 사용자 문서에 role 업데이트 (선택 사항, 클라이언트 편의용)
+        // await updateDoc(doc(db, 'users', user.id), { role: 'admin' }); 
+      }
+
+
+
+      // 성공 메시지 및 이동
+      toast.success('상점이 성공적으로 생성되었습니다!');
+
+      // 스토어 컨텍스트 갱신을 위해 잠시 대기
       setTimeout(() => {
+        refreshStore();
         navigate('/admin');
         window.location.reload(); // StoreContext 새로고침
       }, 1000);

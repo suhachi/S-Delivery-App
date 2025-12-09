@@ -9,28 +9,35 @@ import ReviewModal from '../components/review/ReviewModal';
 import { useAuth } from '../contexts/AuthContext';
 import { useStore } from '../contexts/StoreContext';
 import { useFirestoreCollection } from '../hooks/useFirestoreCollection';
-import { getOrdersPath } from '../lib/firestorePaths';
+import { getUserOrdersQuery } from '../services/orderService';
 import { Order } from '../types/order';
-import { query, collection, where, orderBy } from 'firebase/firestore';
-import { db } from '../lib/firebase';
 
 export default function OrdersPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { storeId } = useStore();
+  const { store } = useStore();
   const [filter, setFilter] = useState<OrderStatus | '전체'>('전체');
-  
+
   // Firestore에서 현재 사용자의 주문 조회
-  const { data: allOrders, loading } = useFirestoreCollection<Order>(
-    storeId && user ? getOrdersPath(storeId) : null,
-    storeId && user ? [where('userId', '==', user.uid), orderBy('createdAt', 'desc')] : undefined
-  );
-  
-  const filteredOrders = filter === '전체' 
+  const ordersQuery = (store?.id && user?.id)
+    ? getUserOrdersQuery(store.id, user.id)
+    : null;
+
+  const { data: allOrders, loading } = useFirestoreCollection<Order>(ordersQuery);
+
+  const filteredOrders = filter === '전체'
     ? (allOrders || [])
     : (allOrders || []).filter(order => order.status === filter);
 
   const filters: (OrderStatus | '전체')[] = ['전체', '접수', '조리중', '배달중', '완료', '취소'];
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-gray-500">주문 내역을 불러오는 중...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
@@ -53,10 +60,9 @@ export default function OrdersPage() {
               onClick={() => setFilter(status)}
               className={`
                 px-4 py-2 rounded-lg whitespace-nowrap transition-all flex-shrink-0
-                ${
-                  filter === status
-                    ? 'gradient-primary text-white shadow-md'
-                    : 'bg-white text-gray-700 border border-gray-200 hover:border-blue-500'
+                ${filter === status
+                  ? 'gradient-primary text-white shadow-md'
+                  : 'bg-white text-gray-700 border border-gray-200 hover:border-blue-500'
                 }
               `}
             >
@@ -93,10 +99,10 @@ export default function OrdersPage() {
   );
 }
 
-function OrderCard({ order, onClick }: { order: any; onClick: () => void }) {
+function OrderCard({ order, onClick }: { order: Order; onClick: () => void }) {
   const [showReviewModal, setShowReviewModal] = useState(false);
   const statusColor = ORDER_STATUS_COLORS[order.status as OrderStatus];
-  
+
   const getStatusIcon = (status: OrderStatus) => {
     switch (status) {
       case '접수':
@@ -141,16 +147,16 @@ function OrderCard({ order, onClick }: { order: any; onClick: () => void }) {
             </div>
             <Badge variant={
               order.status === '완료' ? 'success' :
-              order.status === '취소' ? 'danger' :
-              order.status === '배달중' ? 'secondary' :
-              'primary'
+                order.status === '취소' ? 'danger' :
+                  order.status === '배달중' ? 'secondary' :
+                    'primary'
             }>
               {ORDER_STATUS_LABELS[order.status as OrderStatus]}
             </Badge>
           </div>
 
           <div className="space-y-2 mb-4 pb-4 border-b border-gray-200">
-            {order.items.map((item: any, idx: number) => (
+            {order.items.map((item, idx) => (
               <div key={idx} className="flex items-center justify-between">
                 <div className="flex items-center space-x-3">
                   {item.imageUrl && (
@@ -164,7 +170,7 @@ function OrderCard({ order, onClick }: { order: any; onClick: () => void }) {
                   </div>
                 </div>
                 <p className="text-sm font-semibold text-gray-900">
-                  {((item.price + (item.options?.reduce((sum: number, opt: any) => sum + opt.price, 0) || 0)) * item.quantity).toLocaleString()}원
+                  {((item.price + (item.options?.reduce((sum: number, opt) => sum + opt.price, 0) || 0)) * item.quantity).toLocaleString()}원
                 </p>
               </div>
             ))}

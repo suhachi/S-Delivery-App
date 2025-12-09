@@ -12,9 +12,10 @@ export function useFirestoreDocument<T extends DocumentData>(
   collectionName: string | string[],
   documentId: string | null | undefined
 ): UseFirestoreDocumentResult<T> {
-  const [data, setData] = useState<T | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<Error | null>(null);
+  // 안정적인 의존성 키 생성 (배열인 경우 문자열로 결합)
+  const collectionPath = Array.isArray(collectionName)
+    ? collectionName.join('/')
+    : collectionName;
 
   useEffect(() => {
     if (!documentId) {
@@ -23,12 +24,11 @@ export function useFirestoreDocument<T extends DocumentData>(
       return;
     }
 
+    setLoading(true);
+
     try {
-      // 서브컬렉션 지원: 배열로 전달된 경우 (예: ['stores', 'default', 'orders', orderId])
-      // 문자열로 전달된 경우 기존 동작 유지 (예: 'orders', orderId)
-      const docRef = Array.isArray(collectionName)
-        ? doc(db, ...collectionName, documentId)
-        : doc(db, collectionName, documentId);
+      // collectionPath(문자열)를 사용하여 참조 생성
+      const docRef = doc(db, collectionPath, documentId);
 
       const unsubscribe = onSnapshot(
         docRef,
@@ -45,7 +45,7 @@ export function useFirestoreDocument<T extends DocumentData>(
           setError(null);
         },
         (err) => {
-          console.error(`Firestore document error (${collectionName}/${documentId}):`, err);
+          console.error(`Firestore document error (${collectionPath}/${documentId}):`, err);
           setError(err as Error);
           setLoading(false);
         }
@@ -56,7 +56,7 @@ export function useFirestoreDocument<T extends DocumentData>(
       setError(err as Error);
       setLoading(false);
     }
-  }, [collectionName, documentId]);
+  }, [collectionPath, documentId]); // 안정된 문자열 키 사용
 
   return { data, loading, error };
 }

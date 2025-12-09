@@ -1,13 +1,13 @@
 ﻿# 08-Page-Admin
 
-Generated: 2025-12-08 19:25:45
+Generated: 2025-12-09 13:30:59
 
 ---
 
 ## File: src\pages\admin\AdminCouponManagement.tsx
 
 ```typescript
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Plus, Edit2, Trash2, X, Ticket, TrendingUp, Search, User } from 'lucide-react';
 import { Coupon, DISCOUNT_TYPE_LABELS } from '../../types/coupon';
 import { toast } from 'sonner';
@@ -888,7 +888,13 @@ export default function AdminDashboard() {
   );
 }
 
-function StatCard({ label, value, icon, color, suffix, loading }: any) {
+import { StatCardProps, QuickStatProps } from '../../types/dashboard';
+
+// ... (existing imports)
+
+// ... (existing AdminDashboard component)
+
+function StatCard({ label, value, icon, color, suffix, loading }: StatCardProps) {
   const colorClasses = {
     blue: 'bg-blue-500',
     green: 'bg-green-500',
@@ -915,7 +921,7 @@ function StatCard({ label, value, icon, color, suffix, loading }: any) {
   );
 }
 
-function QuickStat({ label, value, suffix, color }: any) {
+function QuickStat({ label, value, suffix, color }: QuickStatProps) {
   const colorClasses = {
     blue: 'text-blue-600',
     green: 'text-green-600',
@@ -1315,7 +1321,6 @@ export default function AdminMenuManagement() {
   const { store, loading: storeLoading } = useStore();
 
   // storeId가 있을 때만 쿼리 생성
-  if (store) console.log('Current Store ID:', store.id);
   const { data: menus, loading, error } = useFirestoreCollection<Menu>(
     store?.id ? getAllMenusQuery(store.id) : null
   );

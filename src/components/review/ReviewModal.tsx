@@ -16,7 +16,8 @@ interface ReviewModalProps {
 
 export default function ReviewModal({ orderId, onClose, onSuccess }: ReviewModalProps) {
   const { user } = useAuth();
-  const { storeId } = useStore();
+  const { store } = useStore();
+  const storeId = store?.id;
   const [rating, setRating] = useState(0);
   const [hoverRating, setHoverRating] = useState(0);
   const [comment, setComment] = useState('');
@@ -30,7 +31,7 @@ export default function ReviewModal({ orderId, onClose, onSuccess }: ReviewModal
 
     const loadExistingReview = async () => {
       try {
-        const review = await getReviewByOrder(storeId, orderId, user.uid);
+        const review = await getReviewByOrder(storeId, orderId, user.id);
         if (review) {
           setExistingReview(review);
           setRating(review.rating);
@@ -46,7 +47,7 @@ export default function ReviewModal({ orderId, onClose, onSuccess }: ReviewModal
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!storeId || !user) {
       toast.error('로그인이 필요합니다');
       return;
@@ -56,7 +57,7 @@ export default function ReviewModal({ orderId, onClose, onSuccess }: ReviewModal
       toast.error('별점을 선택해주세요');
       return;
     }
-    
+
     if (!comment.trim()) {
       toast.error('리뷰 내용을 입력해주세요');
       return;
@@ -76,14 +77,14 @@ export default function ReviewModal({ orderId, onClose, onSuccess }: ReviewModal
         // 생성
         await createReview(storeId, {
           orderId,
-          userId: user.uid,
+          userId: user.id,
           userDisplayName: user.displayName || user.email || '사용자',
           rating,
           comment: comment.trim(),
         });
         toast.success('리뷰가 등록되었습니다');
       }
-      
+
       onSuccess?.();
       onClose();
     } catch (error) {
@@ -150,11 +151,10 @@ export default function ReviewModal({ orderId, onClose, onSuccess }: ReviewModal
                     className="transition-transform hover:scale-110"
                   >
                     <Star
-                      className={`w-12 h-12 ${
-                        star <= (hoverRating || rating)
-                          ? 'fill-yellow-400 text-yellow-400'
-                          : 'text-gray-300'
-                      }`}
+                      className={`w-12 h-12 ${star <= (hoverRating || rating)
+                        ? 'fill-yellow-400 text-yellow-400'
+                        : 'text-gray-300'
+                        }`}
                     />
                   </button>
                 ))}

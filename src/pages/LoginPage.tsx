@@ -16,34 +16,34 @@ export default function LoginPage() {
 
   const validate = () => {
     const newErrors: { email?: string; password?: string } = {};
-    
+
     if (!email) {
       newErrors.email = '이메일을 입력해주세요';
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       newErrors.email = '올바른 이메일 형식이 아닙니다';
     }
-    
+
     if (!password) {
       newErrors.password = '비밀번호를 입력해주세요';
     } else if (password.length < 6) {
       newErrors.password = '비밀번호는 최소 6자 이상이어야 합니다';
     }
-    
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!validate()) return;
-    
+
     setIsLoading(true);
-    
+
     try {
       await login(email, password);
       toast.success('로그인 성공!');
-      navigate('/menu');
+      navigate('/');
     } catch (error: any) {
       toast.error(error.message || '로그인에 실패했습니다');
     } finally {
@@ -91,7 +91,7 @@ export default function LoginPage() {
               icon={<Mail className="w-5 h-5" />}
               autoComplete="email"
             />
-            
+
             <Input
               label="비밀번호"
               type="password"

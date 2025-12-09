@@ -22,6 +22,9 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const { user, loading: authLoading, signup, login, logout } = useFirebaseAuth();
   const { isAdmin, loading: adminLoading } = useIsAdmin(user?.id);
+  // TEMPORARY TEST OVERRIDE: Force Admin
+  // const isAdmin = true;
+  // const adminLoading = false;
 
   const loading = authLoading || adminLoading;
 

@@ -6,12 +6,13 @@ import Card from '../common/Card';
 import Badge from '../common/Badge';
 import { useStore } from '../../contexts/StoreContext';
 import { useFirestoreCollection } from '../../hooks/useFirestoreCollection';
-import { getNoticesPath } from '../../lib/firestorePaths';
+import { getAllNoticesQuery } from '../../services/noticeService';
 
 export default function NoticeList() {
-  const { storeId } = useStore();
+  const { store } = useStore();
+  const storeId = store?.id;
   const { data: notices, loading } = useFirestoreCollection<Notice>(
-    storeId ? getNoticesPath(storeId) : null
+    storeId ? getAllNoticesQuery(storeId) : null
   );
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
@@ -26,7 +27,7 @@ export default function NoticeList() {
       </div>
     );
   }
-  
+
   // 고정 공지와 일반 공지 분류
   const pinnedNotices = (notices || []).filter(n => n.pinned);
   const regularNotices = (notices || []).filter(n => !n.pinned);
@@ -37,7 +38,7 @@ export default function NoticeList() {
       case '이벤트': return 'secondary';
       case '점검': return 'danger';
       case '할인': return 'success';
-      default: return 'default';
+      default: return 'gray';
     }
   };
 
@@ -65,7 +66,7 @@ export default function NoticeList() {
                 <Pin className="w-4 h-4 text-blue-600 flex-shrink-0" />
               )}
               <Badge
-                variant={getCategoryColor(notice.category) as any}
+                variant={getCategoryColor(notice.category)}
                 size="sm"
               >
                 {notice.category}

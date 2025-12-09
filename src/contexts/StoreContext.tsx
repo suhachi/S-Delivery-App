@@ -48,6 +48,9 @@ export function StoreProvider({ children }: StoreProviderProps) {
       },
       (err) => {
         console.error('Store subscription error:', err);
+        if (err.code === 'permission-denied') {
+          console.warn('⚠️ Permission denied: Please ensure Firestore security rules are deployed.');
+        }
         setError(err);
         setLoading(false);
       }

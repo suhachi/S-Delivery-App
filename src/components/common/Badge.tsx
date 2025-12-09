@@ -1,8 +1,11 @@
-import { HTMLAttributes } from 'react';
+import { HTMLAttributes, ReactNode } from 'react';
+
+export type BadgeVariant = 'primary' | 'secondary' | 'success' | 'warning' | 'danger' | 'gray';
 
 interface BadgeProps extends HTMLAttributes<HTMLSpanElement> {
-  variant?: 'primary' | 'secondary' | 'success' | 'warning' | 'danger' | 'gray';
+  variant?: BadgeVariant;
   size?: 'sm' | 'md' | 'lg';
+  children?: ReactNode;
 }
 
 export default function Badge({
@@ -20,13 +23,13 @@ export default function Badge({
     danger: 'bg-red-100 text-red-700',
     gray: 'bg-gray-100 text-gray-700',
   };
-  
+
   const sizeClasses = {
     sm: 'px-2 py-0.5 text-xs',
     md: 'px-2.5 py-1 text-sm',
     lg: 'px-3 py-1.5 text-base',
   };
-  
+
   return (
     <span
       className={`

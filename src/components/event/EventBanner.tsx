@@ -3,17 +3,16 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Event } from '../../types/event';
 import { useStore } from '../../contexts/StoreContext';
 import { useFirestoreCollection } from '../../hooks/useFirestoreCollection';
-import { getEventsPath } from '../../lib/firestorePaths';
-import { where } from 'firebase/firestore';
+import { getActiveEventsQuery } from '../../services/eventService';
 
 export default function EventBanner() {
-  const { storeId } = useStore();
+  const { store } = useStore();
+  const storeId = store?.id;
   const [currentIndex, setCurrentIndex] = useState(0);
 
   // Firestore에서 활성화된 이벤트만 조회
   const { data: events, loading } = useFirestoreCollection<Event>(
-    storeId ? getEventsPath(storeId) : null,
-    storeId ? [where('active', '==', true)] : undefined
+    storeId ? getActiveEventsQuery(storeId) : null
   );
 
   // 자동 슬라이드
@@ -63,7 +62,7 @@ export default function EventBanner() {
           alt={currentEvent.title}
           className="w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-300"
         />
-        
+
         {/* 오버레이 */}
         <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent">
           <div className="absolute bottom-0 left-0 right-0 p-6">
@@ -105,11 +104,10 @@ export default function EventBanner() {
                   e.stopPropagation();
                   setCurrentIndex(idx);
                 }}
-                className={`w-2 h-2 rounded-full transition-all ${
-                  idx === currentIndex
-                    ? 'bg-white w-8'
-                    : 'bg-white/50 hover:bg-white/75'
-                }`}
+                className={`w-2 h-2 rounded-full transition-all ${idx === currentIndex
+                  ? 'bg-white w-8'
+                  : 'bg-white/50 hover:bg-white/75'
+                  }`}
               />
             ))}
           </div>

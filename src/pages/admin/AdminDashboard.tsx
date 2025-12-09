@@ -199,7 +199,13 @@ export default function AdminDashboard() {
   );
 }
 
-function StatCard({ label, value, icon, color, suffix, loading }: any) {
+import { StatCardProps, QuickStatProps } from '../../types/dashboard';
+
+// ... (existing imports)
+
+// ... (existing AdminDashboard component)
+
+function StatCard({ label, value, icon, color, suffix, loading }: StatCardProps) {
   const colorClasses = {
     blue: 'bg-blue-500',
     green: 'bg-green-500',
@@ -226,7 +232,7 @@ function StatCard({ label, value, icon, color, suffix, loading }: any) {
   );
 }
 
-function QuickStat({ label, value, suffix, color }: any) {
+function QuickStat({ label, value, suffix, color }: QuickStatProps) {
   const colorClasses = {
     blue: 'text-blue-600',
     green: 'text-green-600',

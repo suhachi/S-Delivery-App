@@ -1,8 +1,9 @@
-import { HTMLAttributes } from 'react';
+import { HTMLAttributes, ReactNode } from 'react';
 
 interface CardProps extends HTMLAttributes<HTMLDivElement> {
   hover?: boolean;
   padding?: 'none' | 'sm' | 'md' | 'lg';
+  children?: ReactNode;
 }
 
 export default function Card({
@@ -18,7 +19,7 @@ export default function Card({
     md: 'p-6',
     lg: 'p-8',
   };
-  
+
   return (
     <div
       className={`

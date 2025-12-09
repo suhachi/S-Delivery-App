@@ -1,6 +1,6 @@
 ﻿# 02-Type-Definitions
 
-Generated: 2025-12-08 19:25:45
+Generated: 2025-12-09 13:30:59
 
 ---
 
@@ -36,6 +36,41 @@ export const DISCOUNT_TYPE_LABELS = {
 
 ---
 
+## File: src\types\dashboard.ts
+
+```typescript
+import { BadgeVariant } from '../components/common/Badge';
+
+export interface StatCardProps {
+    label: string;
+    value: number | string;
+    icon: React.ReactNode;
+    color: 'blue' | 'green' | 'orange' | 'purple';
+    suffix?: string;
+    loading?: boolean;
+}
+
+export interface QuickStatProps {
+    label: string;
+    value: number | string;
+    suffix: string;
+    color: 'blue' | 'green' | 'red' | 'orange' | 'purple';
+}
+
+export function getNoticeCategoryColor(category: string): BadgeVariant {
+    switch (category) {
+        case '공지': return 'primary';
+        case '이벤트': return 'secondary';
+        case '점검': return 'danger';
+        case '할인': return 'success';
+        default: return 'gray';
+    }
+}
+
+```
+
+---
+
 ## File: src\types\event.ts
 
 ```typescript
@@ -48,6 +83,52 @@ export interface Event {
   startDate: Date;
   endDate: Date;
   createdAt: Date;
+}
+
+```
+
+---
+
+## File: src\types\global.d.ts
+
+```typescript
+export { };
+
+declare global {
+    interface Window {
+        AUTHNICE?: {
+            requestPay: (params: NicepayRequestParams) => void;
+        };
+    }
+}
+
+export interface NicepayRequestParams {
+    clientId: string;
+    method: string;
+    orderId: string;
+    amount: number;
+    goodsName: string;
+    returnUrl: string;
+    fnError?: (result: any) => void; // 결제 실패 시 콜백
+    // 필요한 경우 추가 필드 정의
+    buyerName?: string;
+    buyerEmail?: string;
+    buyerTel?: string;
+    mallReserved?: string; // 상점 예비정보
+}
+
+export interface NicepaySuccessResult {
+    resultCode: string;
+    resultMsg: string;
+    authResultCode: string;
+    authResultMsg: string;
+    tid: string;
+    clientId: string;
+    orderId: string;
+    amount: number;
+    mallReserved?: string;
+    authToken: string; // 승인 요청 시 필요
+    signature: string; // 위변조 검증
 }
 
 ```
@@ -132,14 +213,28 @@ export interface Order {
   phone: string;
   memo?: string;
   paymentType: PaymentType;
+  // 결제 관련 필드 추가
+  paymentStatus?: '결제대기' | '결제완료' | '결제실패';
+  payment?: {
+    pg: string;
+    tid?: string;
+    amount?: number;
+    paidAt?: any;
+    error?: string;
+    code?: string;
+  };
   createdAt: Date;
   updatedAt?: Date;
+  reviewed?: boolean;
+  reviewRating?: number;
 }
 
-export type OrderStatus = '접수' | '조리중' | '배달중' | '완료' | '취소';
+export type OrderStatus = '결제대기' | '결제실패' | '접수' | '조리중' | '배달중' | '완료' | '취소';
 export type PaymentType = '앱결제' | '만나서카드' | '만나서현금' | '방문시결제';
 
 export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
+  '결제대기': '결제 대기',
+  '결제실패': '결제 실패',
   '접수': '주문 접수',
   '조리중': '조리 중',
   '배달중': '배달 중',
@@ -148,11 +243,13 @@ export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
 };
 
 export const ORDER_STATUS_COLORS: Record<OrderStatus, { bg: string; text: string }> = {
+  '결제대기': { bg: 'bg-yellow-100', text: 'text-yellow-700' },
+  '결제실패': { bg: 'bg-red-100', text: 'text-red-700' },
   '접수': { bg: 'bg-blue-100', text: 'text-blue-700' },
   '조리중': { bg: 'bg-orange-100', text: 'text-orange-700' },
   '배달중': { bg: 'bg-purple-100', text: 'text-purple-700' },
   '완료': { bg: 'bg-green-100', text: 'text-green-700' },
-  '취소': { bg: 'bg-red-100', text: 'text-red-700' },
+  '취소': { bg: 'bg-gray-100', text: 'text-gray-700' },
 };
 
 export const PAYMENT_TYPE_LABELS: Record<PaymentType, string> = {

@@ -19,7 +19,7 @@ export async function createOrder(storeId: string, orderData: Omit<Order, 'id' |
   try {
     const docRef = await addDoc(getOrderCollection(storeId), {
       ...orderData,
-      status: '접수' as OrderStatus,
+      status: orderData.status || '접수', // status가 있으면 사용, 없으면 '접수'
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     });

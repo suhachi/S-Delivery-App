@@ -1,17 +1,20 @@
 ﻿# 09-Component-Common-UI
 
-Generated: 2025-12-08 19:25:45
+Generated: 2025-12-09 13:30:59
 
 ---
 
 ## File: src\components\common\Badge.tsx
 
 ```typescript
-import { HTMLAttributes } from 'react';
+import { HTMLAttributes, ReactNode } from 'react';
+
+export type BadgeVariant = 'primary' | 'secondary' | 'success' | 'warning' | 'danger' | 'gray';
 
 interface BadgeProps extends HTMLAttributes<HTMLSpanElement> {
-  variant?: 'primary' | 'secondary' | 'success' | 'warning' | 'danger' | 'gray';
+  variant?: BadgeVariant;
   size?: 'sm' | 'md' | 'lg';
+  children?: ReactNode;
 }
 
 export default function Badge({
@@ -29,13 +32,13 @@ export default function Badge({
     danger: 'bg-red-100 text-red-700',
     gray: 'bg-gray-100 text-gray-700',
   };
-  
+
   const sizeClasses = {
     sm: 'px-2 py-0.5 text-xs',
     md: 'px-2.5 py-1 text-sm',
     lg: 'px-3 py-1.5 text-base',
   };
-  
+
   return (
     <span
       className={`
@@ -58,7 +61,7 @@ export default function Badge({
 ## File: src\components\common\Button.tsx
 
 ```typescript
-import React, { ButtonHTMLAttributes } from 'react';
+import React, { ButtonHTMLAttributes, ReactNode } from 'react';
 import { Loader2 } from 'lucide-react';
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
@@ -66,6 +69,7 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   size?: 'sm' | 'md' | 'lg';
   isLoading?: boolean;
   fullWidth?: boolean;
+  children?: ReactNode;
 }
 
 export default function Button({
@@ -121,11 +125,12 @@ export default function Button({
 ## File: src\components\common\Card.tsx
 
 ```typescript
-import { HTMLAttributes } from 'react';
+import { HTMLAttributes, ReactNode } from 'react';
 
 interface CardProps extends HTMLAttributes<HTMLDivElement> {
   hover?: boolean;
   padding?: 'none' | 'sm' | 'md' | 'lg';
+  children?: ReactNode;
 }
 
 export default function Card({
@@ -141,7 +146,7 @@ export default function Card({
     md: 'p-6',
     lg: 'p-8',
   };
-  
+
   return (
     <div
       className={`
@@ -484,7 +489,7 @@ export default function NotificationGuide() {
 ```typescript
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ShoppingCart, LogOut, User, Store, Menu, X } from 'lucide-react';
+import { ShoppingCart, LogOut, User, Store, Menu, X, Bell, Gift } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '../../contexts/AuthContext';
 import { useCart } from '../../contexts/CartContext';
@@ -529,6 +534,8 @@ export default function TopBar() {
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center space-x-1">
             <NavLink to="/menu" icon={null}>메뉴</NavLink>
+            <NavLink to="/events" icon={<Gift className="w-4 h-4" />}>이벤트</NavLink>
+            <NavLink to="/notices" icon={<Bell className="w-4 h-4" />}>공지사항</NavLink>
             <NavLink to="/cart" icon={<ShoppingCart className="w-4 h-4" />} badge={cartItemsCount}>
               장바구니
             </NavLink>
@@ -570,6 +577,12 @@ export default function TopBar() {
           <div className="md:hidden py-4 space-y-2 border-t border-gray-200 animate-slide-up">
             <MobileNavLink to="/menu" onClick={() => setMobileMenuOpen(false)}>
               메뉴
+            </MobileNavLink>
+            <MobileNavLink to="/events" onClick={() => setMobileMenuOpen(false)}>
+              이벤트
+            </MobileNavLink>
+            <MobileNavLink to="/notices" onClick={() => setMobileMenuOpen(false)}>
+              공지사항
             </MobileNavLink>
             <MobileNavLink to="/cart" onClick={() => setMobileMenuOpen(false)} badge={cartItemsCount}>
               장바구니

@@ -16,7 +16,6 @@ export default function AdminMenuManagement() {
   const { store, loading: storeLoading } = useStore();
 
   // storeId가 있을 때만 쿼리 생성
-  if (store) console.log('Current Store ID:', store.id);
   const { data: menus, loading, error } = useFirestoreCollection<Menu>(
     store?.id ? getAllMenusQuery(store.id) : null
   );

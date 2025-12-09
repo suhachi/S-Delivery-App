@@ -24,23 +24,48 @@ export function useIsAdmin(userId: string | null | undefined) {
       return;
     }
 
-    // Firestore에서 관리자 권한 확인
+    // Firestore에서 관리자 권한 확인 (System Admin OR Store Owner)
+    // 1. System Admin 체크
     const adminRef = doc(db, 'admins', userId);
-    
-    const unsubscribe = onSnapshot(
-      adminRef,
-      (doc) => {
-        setIsAdmin(doc.exists() && doc.data()?.isAdmin === true);
-        setLoading(false);
-      },
-      (error) => {
-        console.error('관리자 권한 확인 실패:', error);
-        setIsAdmin(false);
-        setLoading(false);
-      }
-    );
 
-    return () => unsubscribe();
+    // 2. Store Owner 체크 (단일 상점 모드: 'default')
+    const adminStoreRef = doc(db, 'adminStores', `${userId}_default`);
+
+    // 두 경로 중 하나라도 존재하면 관리자로 인정
+    // 실시간 리스너를 각각 연결하는 대신, 편의상 하나씩 확인하거나
+    // 여기서는 onSnapshot을 두 번 호출하여 상태를 합칩니다.
+
+    let isSystemAdmin = false;
+    let isStoreOwner = false;
+
+    // 리스너 관리를 위한 클린업 함수 배열
+    const unsubscribes: (() => void)[] = [];
+
+    const updateAdminStatus = () => {
+      setIsAdmin(isSystemAdmin || isStoreOwner);
+      setLoading(false);
+    };
+
+    const unsubAdmin = onSnapshot(adminRef, (doc) => {
+      isSystemAdmin = doc.exists() && doc.data()?.isAdmin === true;
+      updateAdminStatus();
+    }, (err) => {
+      console.error('System admin check failed:', err);
+      // 에러 시 무시 (false)
+    });
+    unsubscribes.push(unsubAdmin);
+
+    const unsubStore = onSnapshot(adminStoreRef, (doc) => {
+      isStoreOwner = doc.exists(); // adminStores에 레코드가 있으면 권한 보유로 간주 (role 체크 추가 가능)
+      updateAdminStatus();
+    }, (err) => {
+      console.error('Store owner check failed:', err);
+    });
+    unsubscribes.push(unsubStore);
+
+    return () => {
+      unsubscribes.forEach(unsub => unsub());
+    };
   }, [userId, isDemoMode]);
 
   return { isAdmin, loading };

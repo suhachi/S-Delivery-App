@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Plus, Edit2, Trash2, X, Ticket, TrendingUp, Search, User } from 'lucide-react';
 import { Coupon, DISCOUNT_TYPE_LABELS } from '../../types/coupon';
 import { toast } from 'sonner';

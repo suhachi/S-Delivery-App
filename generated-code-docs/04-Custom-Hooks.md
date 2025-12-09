@@ -1,6 +1,6 @@
 ﻿# 04-Custom-Hooks
 
-Generated: 2025-12-08 19:25:45
+Generated: 2025-12-09 13:30:59
 
 ---
 
@@ -8,7 +8,7 @@ Generated: 2025-12-08 19:25:45
 
 ```typescript
 import { useState, useEffect } from 'react';
-import { 
+import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
   signOut as firebaseSignOut,
@@ -69,7 +69,7 @@ export function useFirebaseAuth() {
           email: firebaseUser.email || '',
           displayName: firebaseUser.displayName || undefined,
         });
-        
+
         // Firestore에 사용자 문서 생성 (없으면)
         await ensureUserDocument(firebaseUser);
       } else {
@@ -99,18 +99,19 @@ export function useFirebaseAuth() {
     // Firebase 모드
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      
+
       // 프로필 업데이트
       if (displayName && userCredential.user) {
         await updateProfile(userCredential.user, { displayName });
       }
-      
+
       // Firestore에 사용자 문서 생성
       await createUserDocument(userCredential.user, displayName);
-      
+
       return userCredential.user;
-    } catch (error: any) {
-      throw new Error(getAuthErrorMessage(error.code));
+    } catch (error) {
+      const errorCode = (error as { code?: string }).code || 'unknown';
+      throw new Error(getAuthErrorMessage(errorCode));
     }
   };
 
@@ -118,23 +119,23 @@ export function useFirebaseAuth() {
     // 데모 모드
     if (isDemoMode) {
       const demoAccount = DEMO_ACCOUNTS[email as keyof typeof DEMO_ACCOUNTS];
-      
+
       if (!demoAccount) {
         throw new Error('존재하지 않는 사용자입니다. 데모 계정을 사용해주세요:\n- user@demo.com / demo123\n- admin@demo.com / admin123');
       }
-      
+
       if (demoAccount.password !== password) {
         throw new Error('잘못된 비밀번호입니다');
       }
-      
+
       // 데모 계정 로그인
       const { id, email: demoEmail, displayName, isAdmin } = demoAccount;
       const demoUser: User = { id, email: demoEmail, displayName };
-      
+
       setUser(demoUser);
       localStorage.setItem('demoUser', JSON.stringify(demoUser));
       localStorage.setItem('demoIsAdmin', String(isAdmin));
-      
+
       return;
     }
 
@@ -142,8 +143,9 @@ export function useFirebaseAuth() {
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       return userCredential.user;
-    } catch (error: any) {
-      throw new Error(getAuthErrorMessage(error.code));
+    } catch (error) {
+      const errorCode = (error as { code?: string }).code || 'unknown';
+      throw new Error(getAuthErrorMessage(errorCode));
     }
   };
 
@@ -159,7 +161,7 @@ export function useFirebaseAuth() {
     // Firebase 모드
     try {
       await firebaseSignOut(auth);
-    } catch (error: any) {
+    } catch (error) {
       throw new Error('로그아웃에 실패했습니다');
     }
   };
@@ -170,7 +172,7 @@ export function useFirebaseAuth() {
 // Firestore에 사용자 문서 생성
 async function createUserDocument(firebaseUser: FirebaseUser, displayName?: string) {
   const userRef = doc(db, 'users', firebaseUser.uid);
-  
+
   await setDoc(userRef, {
     email: firebaseUser.email,
     displayName: displayName || firebaseUser.email?.split('@')[0] || '',
@@ -183,7 +185,7 @@ async function createUserDocument(firebaseUser: FirebaseUser, displayName?: stri
 async function ensureUserDocument(firebaseUser: FirebaseUser) {
   const userRef = doc(db, 'users', firebaseUser.uid);
   const userDoc = await getDoc(userRef);
-  
+
   if (!userDoc.exists()) {
     await createUserDocument(firebaseUser, firebaseUser.displayName || undefined);
   }
@@ -232,25 +234,30 @@ export function useFirestoreCollection<T extends DocumentData>(
   const [data, setData] = useState<T[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
-  const prevQueryRef = useRef<Query | null>(null);
 
+  // 쿼리 객체 참조 안정화 (Deep Compare)
+  const queryRef = useRef<Query | null>(query);
+
+  // 렌더링 도중에 ref 업데이트 (useEffect보다 먼저 실행되어야 함)
+  if (!queryEqual(queryRef.current, query)) {
+    queryRef.current = query;
+  }
+
+  // 이제 useEffect는 안정화된 queryRef.current가 변경될 때만 실행됨
+  // 즉, 쿼리의 내용이 실제로 바뀌었을 때만 재구독 발생
   useEffect(() => {
-    if (!query) {
+    const activeQuery = queryRef.current;
+
+    if (!activeQuery) {
       setLoading(false);
       return;
     }
-
-    // 이전 쿼리와 동일하면 재구독하지 않음
-    if (prevQueryRef.current && queryEqual(prevQueryRef.current, query)) {
-      return;
-    }
-    prevQueryRef.current = query;
 
     setLoading(true);
 
     try {
       const unsubscribe = onSnapshot(
-        query,
+        activeQuery,
         (snapshot) => {
           const items = snapshot.docs.map(doc => ({
             id: doc.id,
@@ -273,7 +280,7 @@ export function useFirestoreCollection<T extends DocumentData>(
       setError(err as Error);
       setLoading(false);
     }
-  }, [query]);
+  }, [queryRef.current]); // query 대신 queryRef.current 사용
 
   return { data, loading, error };
 }
@@ -296,12 +303,13 @@ interface UseFirestoreDocumentResult<T> {
 }
 
 export function useFirestoreDocument<T extends DocumentData>(
-  collectionName: string,
+  collectionName: string | string[],
   documentId: string | null | undefined
 ): UseFirestoreDocumentResult<T> {
-  const [data, setData] = useState<T | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<Error | null>(null);
+  // 안정적인 의존성 키 생성 (배열인 경우 문자열로 결합)
+  const collectionPath = Array.isArray(collectionName)
+    ? collectionName.join('/')
+    : collectionName;
 
   useEffect(() => {
     if (!documentId) {
@@ -310,8 +318,11 @@ export function useFirestoreDocument<T extends DocumentData>(
       return;
     }
 
+    setLoading(true);
+
     try {
-      const docRef = doc(db, collectionName, documentId);
+      // collectionPath(문자열)를 사용하여 참조 생성
+      const docRef = doc(db, collectionPath, documentId);
 
       const unsubscribe = onSnapshot(
         docRef,
@@ -328,7 +339,7 @@ export function useFirestoreDocument<T extends DocumentData>(
           setError(null);
         },
         (err) => {
-          console.error(`Firestore document error (${collectionName}/${documentId}):`, err);
+          console.error(`Firestore document error (${collectionPath}/${documentId}):`, err);
           setError(err as Error);
           setLoading(false);
         }
@@ -339,7 +350,7 @@ export function useFirestoreDocument<T extends DocumentData>(
       setError(err as Error);
       setLoading(false);
     }
-  }, [collectionName, documentId]);
+  }, [collectionPath, documentId]); // 안정된 문자열 키 사용
 
   return { data, loading, error };
 }
@@ -377,23 +388,48 @@ export function useIsAdmin(userId: string | null | undefined) {
       return;
     }
 
-    // Firestore에서 관리자 권한 확인
+    // Firestore에서 관리자 권한 확인 (System Admin OR Store Owner)
+    // 1. System Admin 체크
     const adminRef = doc(db, 'admins', userId);
-    
-    const unsubscribe = onSnapshot(
-      adminRef,
-      (doc) => {
-        setIsAdmin(doc.exists() && doc.data()?.isAdmin === true);
-        setLoading(false);
-      },
-      (error) => {
-        console.error('관리자 권한 확인 실패:', error);
-        setIsAdmin(false);
-        setLoading(false);
-      }
-    );
 
-    return () => unsubscribe();
+    // 2. Store Owner 체크 (단일 상점 모드: 'default')
+    const adminStoreRef = doc(db, 'adminStores', `${userId}_default`);
+
+    // 두 경로 중 하나라도 존재하면 관리자로 인정
+    // 실시간 리스너를 각각 연결하는 대신, 편의상 하나씩 확인하거나
+    // 여기서는 onSnapshot을 두 번 호출하여 상태를 합칩니다.
+
+    let isSystemAdmin = false;
+    let isStoreOwner = false;
+
+    // 리스너 관리를 위한 클린업 함수 배열
+    const unsubscribes: (() => void)[] = [];
+
+    const updateAdminStatus = () => {
+      setIsAdmin(isSystemAdmin || isStoreOwner);
+      setLoading(false);
+    };
+
+    const unsubAdmin = onSnapshot(adminRef, (doc) => {
+      isSystemAdmin = doc.exists() && doc.data()?.isAdmin === true;
+      updateAdminStatus();
+    }, (err) => {
+      console.error('System admin check failed:', err);
+      // 에러 시 무시 (false)
+    });
+    unsubscribes.push(unsubAdmin);
+
+    const unsubStore = onSnapshot(adminStoreRef, (doc) => {
+      isStoreOwner = doc.exists(); // adminStores에 레코드가 있으면 권한 보유로 간주 (role 체크 추가 가능)
+      updateAdminStatus();
+    }, (err) => {
+      console.error('Store owner check failed:', err);
+    });
+    unsubscribes.push(unsubStore);
+
+    return () => {
+      unsubscribes.forEach(unsub => unsub());
+    };
   }, [userId, isDemoMode]);
 
   return { isAdmin, loading };

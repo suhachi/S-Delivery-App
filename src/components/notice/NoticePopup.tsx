@@ -10,7 +10,8 @@ import Button from '../common/Button';
 import Badge from '../common/Badge';
 
 export default function NoticePopup() {
-  const { storeId } = useStore();
+  const { store } = useStore();
+  const storeId = store?.id;
   const [notice, setNotice] = useState<Notice | null>(null);
   const [show, setShow] = useState(false);
 
@@ -28,7 +29,7 @@ export default function NoticePopup() {
         );
 
         const snapshot = await getDocs(q);
-        
+
         if (snapshot.empty) {
           return;
         }
@@ -75,7 +76,7 @@ export default function NoticePopup() {
       case '이벤트': return 'secondary';
       case '점검': return 'danger';
       case '할인': return 'success';
-      default: return 'default';
+      default: return 'gray';
     }
   };
 
@@ -95,7 +96,7 @@ export default function NoticePopup() {
           <div className="mb-4">
             <div className="flex items-center gap-2 mb-2">
               <Pin className="w-5 h-5 text-blue-600" />
-              <Badge variant={getCategoryColor(notice.category) as any}>
+              <Badge variant={getCategoryColor(notice.category)}>
                 {notice.category}
               </Badge>
             </div>

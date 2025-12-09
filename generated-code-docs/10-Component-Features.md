@@ -1,6 +1,6 @@
 ﻿# 10-Component-Features
 
-Generated: 2025-12-08 19:25:46
+Generated: 2025-12-09 13:30:59
 
 ---
 
@@ -84,17 +84,16 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Event } from '../../types/event';
 import { useStore } from '../../contexts/StoreContext';
 import { useFirestoreCollection } from '../../hooks/useFirestoreCollection';
-import { getEventsPath } from '../../lib/firestorePaths';
-import { where } from 'firebase/firestore';
+import { getActiveEventsQuery } from '../../services/eventService';
 
 export default function EventBanner() {
-  const { storeId } = useStore();
+  const { store } = useStore();
+  const storeId = store?.id;
   const [currentIndex, setCurrentIndex] = useState(0);
 
   // Firestore에서 활성화된 이벤트만 조회
   const { data: events, loading } = useFirestoreCollection<Event>(
-    storeId ? getEventsPath(storeId) : null,
-    storeId ? [where('active', '==', true)] : undefined
+    storeId ? getActiveEventsQuery(storeId) : null
   );
 
   // 자동 슬라이드
@@ -144,7 +143,7 @@ export default function EventBanner() {
           alt={currentEvent.title}
           className="w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-300"
         />
-        
+
         {/* 오버레이 */}
         <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent">
           <div className="absolute bottom-0 left-0 right-0 p-6">
@@ -186,11 +185,10 @@ export default function EventBanner() {
                   e.stopPropagation();
                   setCurrentIndex(idx);
                 }}
-                className={`w-2 h-2 rounded-full transition-all ${
-                  idx === currentIndex
-                    ? 'bg-white w-8'
-                    : 'bg-white/50 hover:bg-white/75'
-                }`}
+                className={`w-2 h-2 rounded-full transition-all ${idx === currentIndex
+                  ? 'bg-white w-8'
+                  : 'bg-white/50 hover:bg-white/75'
+                  }`}
               />
             ))}
           </div>
@@ -199,6 +197,94 @@ export default function EventBanner() {
     </div>
   );
 }
+```
+
+---
+
+## File: src\components\event\EventList.tsx
+
+```typescript
+import { useState } from 'react';
+import { Calendar, ChevronRight } from 'lucide-react';
+import { Event } from '../../types/event';
+import { formatDate } from '../../utils/formatDate';
+import Card from '../common/Card';
+import Badge from '../common/Badge';
+import { useStore } from '../../contexts/StoreContext';
+import { useFirestoreCollection } from '../../hooks/useFirestoreCollection';
+import { getActiveEventsQuery } from '../../services/eventService';
+
+export default function EventList() {
+    const { store } = useStore();
+    const storeId = store?.id;
+    const { data: events, loading } = useFirestoreCollection<Event>(
+        storeId ? getActiveEventsQuery(storeId) : null
+    );
+
+    if (!storeId) return null;
+
+    if (loading) {
+        return (
+            <div className="text-center py-8">
+                <p className="text-gray-600">이벤트를 불러오는 중...</p>
+            </div>
+        );
+    }
+
+    if (!events || events.length === 0) {
+        return (
+            <div className="text-center py-16">
+                <div className="text-5xl mb-4">🎉</div>
+                <p className="text-gray-600">현재 진행 중인 이벤트가 없습니다</p>
+            </div>
+        );
+    }
+
+    return (
+        <div className="space-y-4">
+            {events.map((event) => (
+                <Card key={event.id} className="overflow-hidden p-0">
+                    {event.imageUrl && (
+                        <div className="relative h-48 w-full">
+                            <img
+                                src={event.imageUrl}
+                                alt={event.title}
+                                className="w-full h-full object-cover"
+                            />
+                            {event.active && (
+                                <div className="absolute top-2 right-2">
+                                    <Badge variant="success" size="sm">진행중</Badge>
+                                </div>
+                            )}
+                        </div>
+                    )}
+                    <div className="p-4">
+                        <h3 className="text-lg font-bold text-gray-900 mb-2">{event.title}</h3>
+
+                        <div className="flex items-center text-sm text-gray-500 mb-4">
+                            <Calendar className="w-4 h-4 mr-1.5" />
+                            <span>
+                                {formatDate(event.startDate)} ~ {formatDate(event.endDate)}
+                            </span>
+                        </div>
+
+                        {event.link && (
+                            <a
+                                href={event.link}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center text-blue-600 hover:text-blue-700 font-medium text-sm"
+                            >
+                                자세히 보기 <ChevronRight className="w-4 h-4 ml-0.5" />
+                            </a>
+                        )}
+                    </div>
+                </Card>
+            ))}
+        </div>
+    );
+}
+
 ```
 
 ---
@@ -634,12 +720,13 @@ import Card from '../common/Card';
 import Badge from '../common/Badge';
 import { useStore } from '../../contexts/StoreContext';
 import { useFirestoreCollection } from '../../hooks/useFirestoreCollection';
-import { getNoticesPath } from '../../lib/firestorePaths';
+import { getAllNoticesQuery } from '../../services/noticeService';
 
 export default function NoticeList() {
-  const { storeId } = useStore();
+  const { store } = useStore();
+  const storeId = store?.id;
   const { data: notices, loading } = useFirestoreCollection<Notice>(
-    storeId ? getNoticesPath(storeId) : null
+    storeId ? getAllNoticesQuery(storeId) : null
   );
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
@@ -654,7 +741,7 @@ export default function NoticeList() {
       </div>
     );
   }
-  
+
   // 고정 공지와 일반 공지 분류
   const pinnedNotices = (notices || []).filter(n => n.pinned);
   const regularNotices = (notices || []).filter(n => !n.pinned);
@@ -665,7 +752,7 @@ export default function NoticeList() {
       case '이벤트': return 'secondary';
       case '점검': return 'danger';
       case '할인': return 'success';
-      default: return 'default';
+      default: return 'gray';
     }
   };
 
@@ -693,7 +780,7 @@ export default function NoticeList() {
                 <Pin className="w-4 h-4 text-blue-600 flex-shrink-0" />
               )}
               <Badge
-                variant={getCategoryColor(notice.category) as any}
+                variant={getCategoryColor(notice.category)}
                 size="sm"
               >
                 {notice.category}
@@ -781,7 +868,8 @@ import Button from '../common/Button';
 import Badge from '../common/Badge';
 
 export default function NoticePopup() {
-  const { storeId } = useStore();
+  const { store } = useStore();
+  const storeId = store?.id;
   const [notice, setNotice] = useState<Notice | null>(null);
   const [show, setShow] = useState(false);
 
@@ -799,7 +887,7 @@ export default function NoticePopup() {
         );
 
         const snapshot = await getDocs(q);
-        
+
         if (snapshot.empty) {
           return;
         }
@@ -846,7 +934,7 @@ export default function NoticePopup() {
       case '이벤트': return 'secondary';
       case '점검': return 'danger';
       case '할인': return 'success';
-      default: return 'default';
+      default: return 'gray';
     }
   };
 
@@ -866,7 +954,7 @@ export default function NoticePopup() {
           <div className="mb-4">
             <div className="flex items-center gap-2 mb-2">
               <Pin className="w-5 h-5 text-blue-600" />
-              <Badge variant={getCategoryColor(notice.category) as any}>
+              <Badge variant={getCategoryColor(notice.category)}>
                 {notice.category}
               </Badge>
             </div>
@@ -919,8 +1007,9 @@ import Card from '../common/Card';
 import { formatDate } from '../../utils/formatDate';
 
 export default function ReviewList() {
-  const { storeId } = useStore();
-  
+  const { store } = useStore();
+  const storeId = store?.id;
+
   // Firestore에서 리뷰 조회 (최신순)
   const { data: reviews, loading } = useFirestoreCollection<Review>(
     storeId ? getReviewsPath(storeId) : null
@@ -1011,10 +1100,10 @@ export default function ReviewList() {
 }
 
 function ReviewCard({ review }: { review: Review }) {
-  const ratingColor = 
+  const ratingColor =
     review.rating === 5 ? 'text-yellow-500' :
-    review.rating === 4 ? 'text-blue-500' :
-    'text-gray-500';
+      review.rating === 4 ? 'text-blue-500' :
+        'text-gray-500';
 
   return (
     <Card>
@@ -1033,11 +1122,10 @@ function ReviewCard({ review }: { review: Review }) {
                 {[1, 2, 3, 4, 5].map((star) => (
                   <Star
                     key={star}
-                    className={`w-4 h-4 ${
-                      star <= review.rating
+                    className={`w-4 h-4 ${star <= review.rating
                         ? `fill-current ${ratingColor}`
                         : 'text-gray-300'
-                    }`}
+                      }`}
                   />
                 ))}
                 <span className={`ml-2 font-semibold ${ratingColor}`}>
@@ -1092,7 +1180,8 @@ interface ReviewModalProps {
 
 export default function ReviewModal({ orderId, onClose, onSuccess }: ReviewModalProps) {
   const { user } = useAuth();
-  const { storeId } = useStore();
+  const { store } = useStore();
+  const storeId = store?.id;
   const [rating, setRating] = useState(0);
   const [hoverRating, setHoverRating] = useState(0);
   const [comment, setComment] = useState('');
@@ -1106,7 +1195,7 @@ export default function ReviewModal({ orderId, onClose, onSuccess }: ReviewModal
 
     const loadExistingReview = async () => {
       try {
-        const review = await getReviewByOrder(storeId, orderId, user.uid);
+        const review = await getReviewByOrder(storeId, orderId, user.id);
         if (review) {
           setExistingReview(review);
           setRating(review.rating);
@@ -1122,7 +1211,7 @@ export default function ReviewModal({ orderId, onClose, onSuccess }: ReviewModal
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!storeId || !user) {
       toast.error('로그인이 필요합니다');
       return;
@@ -1132,7 +1221,7 @@ export default function ReviewModal({ orderId, onClose, onSuccess }: ReviewModal
       toast.error('별점을 선택해주세요');
       return;
     }
-    
+
     if (!comment.trim()) {
       toast.error('리뷰 내용을 입력해주세요');
       return;
@@ -1152,14 +1241,14 @@ export default function ReviewModal({ orderId, onClose, onSuccess }: ReviewModal
         // 생성
         await createReview(storeId, {
           orderId,
-          userId: user.uid,
+          userId: user.id,
           userDisplayName: user.displayName || user.email || '사용자',
           rating,
           comment: comment.trim(),
         });
         toast.success('리뷰가 등록되었습니다');
       }
-      
+
       onSuccess?.();
       onClose();
     } catch (error) {
@@ -1226,11 +1315,10 @@ export default function ReviewModal({ orderId, onClose, onSuccess }: ReviewModal
                     className="transition-transform hover:scale-110"
                   >
                     <Star
-                      className={`w-12 h-12 ${
-                        star <= (hoverRating || rating)
-                          ? 'fill-yellow-400 text-yellow-400'
-                          : 'text-gray-300'
-                      }`}
+                      className={`w-12 h-12 ${star <= (hoverRating || rating)
+                        ? 'fill-yellow-400 text-yellow-400'
+                        : 'text-gray-300'
+                        }`}
                     />
                   </button>
                 ))}

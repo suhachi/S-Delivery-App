@@ -118,13 +118,32 @@ export default function StoreSetupWizard() {
         updatedAt: serverTimestamp(),
       };
 
-      // 루트 컬렉션 'stores'의 'default' 문서로 저장
+      // 1. 상점 문서 생성 (단일 상점 모드: 'default' ID 사용)
       await setDoc(doc(db, 'stores', DEFAULT_STORE_ID), storeData);
 
-      toast.success('상점이 생성되었습니다! 🎉');
+      // 2. 관리자-상점 매핑 생성 (권한 부여용)
+      // 이 매핑이 있어야 firestore.rules의 isStoreOwner()가 true를 반환하여 수정 권한을 가짐
+      if (user?.id) {
+        const adminStoreId = `${user.id}_${DEFAULT_STORE_ID}`;
+        await setDoc(doc(db, 'adminStores', adminStoreId), {
+          adminUid: user.id,
+          storeId: DEFAULT_STORE_ID,
+          role: 'owner',
+          createdAt: serverTimestamp(),
+        });
 
-      // 2. 관리자 페이지로 이동
+        // 3. 사용자 문서에 role 업데이트 (선택 사항, 클라이언트 편의용)
+        // await updateDoc(doc(db, 'users', user.id), { role: 'admin' }); 
+      }
+
+
+
+      // 성공 메시지 및 이동
+      toast.success('상점이 성공적으로 생성되었습니다!');
+
+      // 스토어 컨텍스트 갱신을 위해 잠시 대기
       setTimeout(() => {
+        refreshStore();
         navigate('/admin');
         window.location.reload(); // StoreContext 새로고침
       }, 1000);

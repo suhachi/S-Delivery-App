@@ -7,8 +7,9 @@ import Card from '../common/Card';
 import { formatDate } from '../../utils/formatDate';
 
 export default function ReviewList() {
-  const { storeId } = useStore();
-  
+  const { store } = useStore();
+  const storeId = store?.id;
+
   // Firestore에서 리뷰 조회 (최신순)
   const { data: reviews, loading } = useFirestoreCollection<Review>(
     storeId ? getReviewsPath(storeId) : null
@@ -99,10 +100,10 @@ export default function ReviewList() {
 }
 
 function ReviewCard({ review }: { review: Review }) {
-  const ratingColor = 
+  const ratingColor =
     review.rating === 5 ? 'text-yellow-500' :
-    review.rating === 4 ? 'text-blue-500' :
-    'text-gray-500';
+      review.rating === 4 ? 'text-blue-500' :
+        'text-gray-500';
 
   return (
     <Card>
@@ -121,11 +122,10 @@ function ReviewCard({ review }: { review: Review }) {
                 {[1, 2, 3, 4, 5].map((star) => (
                   <Star
                     key={star}
-                    className={`w-4 h-4 ${
-                      star <= review.rating
+                    className={`w-4 h-4 ${star <= review.rating
                         ? `fill-current ${ratingColor}`
                         : 'text-gray-300'
-                    }`}
+                      }`}
                   />
                 ))}
                 <span className={`ml-2 font-semibold ${ratingColor}`}>

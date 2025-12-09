@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { 
+import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
   signOut as firebaseSignOut,
@@ -60,7 +60,7 @@ export function useFirebaseAuth() {
           email: firebaseUser.email || '',
           displayName: firebaseUser.displayName || undefined,
         });
-        
+
         // Firestore에 사용자 문서 생성 (없으면)
         await ensureUserDocument(firebaseUser);
       } else {
@@ -90,18 +90,19 @@ export function useFirebaseAuth() {
     // Firebase 모드
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      
+
       // 프로필 업데이트
       if (displayName && userCredential.user) {
         await updateProfile(userCredential.user, { displayName });
       }
-      
+
       // Firestore에 사용자 문서 생성
       await createUserDocument(userCredential.user, displayName);
-      
+
       return userCredential.user;
-    } catch (error: any) {
-      throw new Error(getAuthErrorMessage(error.code));
+    } catch (error) {
+      const errorCode = (error as { code?: string }).code || 'unknown';
+      throw new Error(getAuthErrorMessage(errorCode));
     }
   };
 
@@ -109,23 +110,23 @@ export function useFirebaseAuth() {
     // 데모 모드
     if (isDemoMode) {
       const demoAccount = DEMO_ACCOUNTS[email as keyof typeof DEMO_ACCOUNTS];
-      
+
       if (!demoAccount) {
         throw new Error('존재하지 않는 사용자입니다. 데모 계정을 사용해주세요:\n- user@demo.com / demo123\n- admin@demo.com / admin123');
       }
-      
+
       if (demoAccount.password !== password) {
         throw new Error('잘못된 비밀번호입니다');
       }
-      
+
       // 데모 계정 로그인
       const { id, email: demoEmail, displayName, isAdmin } = demoAccount;
       const demoUser: User = { id, email: demoEmail, displayName };
-      
+
       setUser(demoUser);
       localStorage.setItem('demoUser', JSON.stringify(demoUser));
       localStorage.setItem('demoIsAdmin', String(isAdmin));
-      
+
       return;
     }
 
@@ -133,8 +134,9 @@ export function useFirebaseAuth() {
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       return userCredential.user;
-    } catch (error: any) {
-      throw new Error(getAuthErrorMessage(error.code));
+    } catch (error) {
+      const errorCode = (error as { code?: string }).code || 'unknown';
+      throw new Error(getAuthErrorMessage(errorCode));
     }
   };
 
@@ -150,7 +152,7 @@ export function useFirebaseAuth() {
     // Firebase 모드
     try {
       await firebaseSignOut(auth);
-    } catch (error: any) {
+    } catch (error) {
       throw new Error('로그아웃에 실패했습니다');
     }
   };
@@ -161,7 +163,7 @@ export function useFirebaseAuth() {
 // Firestore에 사용자 문서 생성
 async function createUserDocument(firebaseUser: FirebaseUser, displayName?: string) {
   const userRef = doc(db, 'users', firebaseUser.uid);
-  
+
   await setDoc(userRef, {
     email: firebaseUser.email,
     displayName: displayName || firebaseUser.email?.split('@')[0] || '',
@@ -174,7 +176,7 @@ async function createUserDocument(firebaseUser: FirebaseUser, displayName?: stri
 async function ensureUserDocument(firebaseUser: FirebaseUser) {
   const userRef = doc(db, 'users', firebaseUser.uid);
   const userDoc = await getDoc(userRef);
-  
+
   if (!userDoc.exists()) {
     await createUserDocument(firebaseUser, firebaseUser.displayName || undefined);
   }

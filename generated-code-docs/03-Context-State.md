@@ -1,6 +1,6 @@
 ﻿# 03-Context-State
 
-Generated: 2025-12-08 19:25:45
+Generated: 2025-12-09 13:30:59
 
 ---
 
@@ -31,6 +31,9 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const { user, loading: authLoading, signup, login, logout } = useFirebaseAuth();
   const { isAdmin, loading: adminLoading } = useIsAdmin(user?.id);
+  // TEMPORARY TEST OVERRIDE: Force Admin
+  // const isAdmin = true;
+  // const adminLoading = false;
 
   const loading = authLoading || adminLoading;
 
@@ -211,6 +214,9 @@ export function StoreProvider({ children }: StoreProviderProps) {
       },
       (err) => {
         console.error('Store subscription error:', err);
+        if (err.code === 'permission-denied') {
+          console.warn('⚠️ Permission denied: Please ensure Firestore security rules are deployed.');
+        }
         setError(err);
         setLoading(false);
       }

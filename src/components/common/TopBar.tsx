@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ShoppingCart, LogOut, User, Store, Menu, X } from 'lucide-react';
+import { ShoppingCart, LogOut, User, Store, Menu, X, Bell, Gift } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '../../contexts/AuthContext';
 import { useCart } from '../../contexts/CartContext';
@@ -45,6 +45,8 @@ export default function TopBar() {
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center space-x-1">
             <NavLink to="/menu" icon={null}>메뉴</NavLink>
+            <NavLink to="/events" icon={<Gift className="w-4 h-4" />}>이벤트</NavLink>
+            <NavLink to="/notices" icon={<Bell className="w-4 h-4" />}>공지사항</NavLink>
             <NavLink to="/cart" icon={<ShoppingCart className="w-4 h-4" />} badge={cartItemsCount}>
               장바구니
             </NavLink>
@@ -86,6 +88,12 @@ export default function TopBar() {
           <div className="md:hidden py-4 space-y-2 border-t border-gray-200 animate-slide-up">
             <MobileNavLink to="/menu" onClick={() => setMobileMenuOpen(false)}>
               메뉴
+            </MobileNavLink>
+            <MobileNavLink to="/events" onClick={() => setMobileMenuOpen(false)}>
+              이벤트
+            </MobileNavLink>
+            <MobileNavLink to="/notices" onClick={() => setMobileMenuOpen(false)}>
+              공지사항
             </MobileNavLink>
             <MobileNavLink to="/cart" onClick={() => setMobileMenuOpen(false)} badge={cartItemsCount}>
               장바구니
