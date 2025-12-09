@@ -62,6 +62,8 @@ export default function OrderDetailPage() {
     switch (status) {
       case '접수': return '접수중';
       case '접수완료': return '접수확인';
+      case '조리완료': return '조리 완료';
+      case '포장완료': return '포장 완료';
       default: return ORDER_STATUS_LABELS[status];
     }
   };
@@ -74,7 +76,12 @@ export default function OrderDetailPage() {
     // navigate('/cart');
   };
 
-  const statusSteps: OrderStatus[] = ['접수', '접수완료', '조리중', '배달중', '완료'];
+  const deliverySteps: OrderStatus[] = ['접수', '접수완료', '조리중', '배달중', '완료'];
+  const pickupSteps: OrderStatus[] = ['접수', '접수완료', '조리중', '조리완료', '포장완료'];
+
+  const isPickup = order.orderType === '포장주문';
+  const statusSteps = isPickup ? pickupSteps : deliverySteps;
+
   const currentStepIndex = statusSteps.indexOf(order.status as OrderStatus);
 
   return (
@@ -116,9 +123,9 @@ export default function OrderDetailPage() {
               </div>
               <Badge
                 variant={
-                  order.status === '완료' ? 'success' :
+                  order.status === '완료' || order.status === '포장완료' ? 'success' :
                     order.status === '취소' ? 'danger' :
-                      order.status === '배달중' ? 'secondary' :
+                      order.status === '배달중' || order.status === '조리완료' ? 'secondary' :
                         'primary'
                 }
                 size="lg"
@@ -255,7 +262,7 @@ export default function OrderDetailPage() {
             <Button variant="outline" fullWidth onClick={handleReorder}>
               재주문하기
             </Button>
-            {order.status === '완료' && (
+            {(order.status === '완료' || order.status === '포장완료') && (
               <Button fullWidth onClick={() => setShowReviewModal(true)}>
                 리뷰 작성하기
               </Button>
