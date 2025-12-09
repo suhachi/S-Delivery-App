@@ -25,6 +25,7 @@ import { CartProvider } from './contexts/CartContext';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { StoreProvider, useStore } from './contexts/StoreContext';
 import TopBar from './components/common/TopBar';
+import NicepayReturnPage from './pages/NicepayReturnPage';
 import './styles/globals.css';
 
 // Protected Route Component
@@ -99,9 +100,6 @@ function AppContent() {
           <Route path="/login" element={<LoginPage />} />
           <Route path="/signup" element={<SignupPage />} />
           <Route path="/menu" element={<RequireAuth><MenuPage /></RequireAuth>} />
-          import NicepayReturnPage from './pages/NicepayReturnPage';
-
-          // ...
 
           <Route path="/cart" element={<RequireAuth><CartPage /></RequireAuth>} />
           <Route path="/payment/nicepay/return" element={<NicepayReturnPage />} />

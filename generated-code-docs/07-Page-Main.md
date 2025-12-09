@@ -1,6 +1,6 @@
 ﻿# 07-Page-Main
 
-Generated: 2025-12-09 14:11:21
+Generated: 2025-12-09 14:46:44
 
 ---
 
@@ -408,6 +408,13 @@ export default function CheckoutPage() {
 
       // 2. 결제 수단이 '앱결제'인 경우 NICEPAY 호출
       if (formData.paymentType === '앱결제') {
+        const clientId = import.meta.env.VITE_NICEPAY_CLIENT_ID;
+        if (!clientId) {
+          toast.error('결제 시스템이 아직 설정되지 않았습니다. 관리자에게 문의하세요.');
+          setIsSubmitting(false);
+          return;
+        }
+
         const { requestNicepayPayment } = await import('../lib/nicepayClient');
 
         await requestNicepayPayment({
@@ -1354,6 +1361,17 @@ export default function MyPage() {
             <span>로그아웃</span>
           </button>
         </Card>
+
+        {/* 개발사 정보 */}
+        <div className="mt-8 mb-4 text-center">
+          <p className="text-xs text-gray-400 font-medium">Powered by KS Company</p>
+          <div className="flex items-center justify-center gap-2 mt-1 text-[10px] text-gray-400">
+            <span>개발사: KS컴퍼니</span>
+            <span className="w-px h-2 bg-gray-300"></span>
+            <span>대표: 석경선, 배종수</span>
+          </div>
+          <p className="text-[10px] text-gray-300 mt-1">© 2024 Simple Delivery App Template. All rights reserved.</p>
+        </div>
       </div>
     </div>
   );

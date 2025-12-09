@@ -30,7 +30,13 @@ export const nicepayConfirm = functions.https.onRequest(async (req, res) => {
 
         if (!SECRET_KEY) {
             functions.logger.error("NICEPAY Secret Key is missing in functions config");
-            res.status(500).json({ error: "Server Configuration Error" });
+            // 키 미설정 시: 500 Internal Server Error와 명확한 메시지 전달
+            // 프론트엔드에서는 이를 "결제 미활성화" 안내로 처리할 수 있음
+            res.status(500).json({
+                success: false,
+                code: "NICEPAY_KEY_MISSING",
+                message: "NICEPAY secret key is not configured."
+            });
             return;
         }
 

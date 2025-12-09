@@ -284,7 +284,10 @@ function EventFormModal({ event, onSave, onClose }: EventFormModalProps) {
               <input
                 type="date"
                 value={formatDateForInput(formData.startDate)}
-                onChange={(e) => setFormData({ ...formData, startDate: new Date(e.target.value) })}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (val) setFormData({ ...formData, startDate: new Date(val) });
+                }}
                 className="w-full px-4 py-2.5 text-gray-900 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
                 required
               />
@@ -296,7 +299,10 @@ function EventFormModal({ event, onSave, onClose }: EventFormModalProps) {
               <input
                 type="date"
                 value={formatDateForInput(formData.endDate)}
-                onChange={(e) => setFormData({ ...formData, endDate: new Date(e.target.value) })}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (val) setFormData({ ...formData, endDate: new Date(val) });
+                }}
                 className="w-full px-4 py-2.5 text-gray-900 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
                 required
               />

@@ -288,6 +288,17 @@ export default function MyPage() {
             <span>로그아웃</span>
           </button>
         </Card>
+
+        {/* 개발사 정보 */}
+        <div className="mt-8 mb-4 text-center">
+          <p className="text-xs text-gray-400 font-medium">Powered by KS Company</p>
+          <div className="flex items-center justify-center gap-2 mt-1 text-[10px] text-gray-400">
+            <span>개발사: KS컴퍼니</span>
+            <span className="w-px h-2 bg-gray-300"></span>
+            <span>대표: 석경선, 배종수</span>
+          </div>
+          <p className="text-[10px] text-gray-300 mt-1">© 2024 Simple Delivery App Template. All rights reserved.</p>
+        </div>
       </div>
     </div>
   );

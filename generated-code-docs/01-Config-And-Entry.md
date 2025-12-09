@@ -1,6 +1,6 @@
 ﻿# 01-Config-And-Entry
 
-Generated: 2025-12-09 14:11:21
+Generated: 2025-12-09 14:46:44
 
 ---
 
@@ -8,7 +8,7 @@ Generated: 2025-12-09 14:11:21
 
 ```typescript
 import React from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { Toaster } from 'sonner';
 import WelcomePage from './pages/WelcomePage';
 import LoginPage from './pages/LoginPage';
@@ -38,9 +38,11 @@ import './styles/globals.css';
 
 // Protected Route Component
 function RequireAuth({ children, requireAdmin = false }: { children: React.ReactNode; requireAdmin?: boolean }) {
-  const { user, isAdmin, loading } = useAuth();
+  const { user, isAdmin, loading: authLoading } = useAuth();
+  const { store, loading: storeLoading } = useStore();
+  const location = useLocation();
 
-  if (loading) {
+  if (authLoading || (requireAdmin && storeLoading)) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
@@ -54,6 +56,13 @@ function RequireAuth({ children, requireAdmin = false }: { children: React.React
 
   if (requireAdmin && !isAdmin) {
     return <Navigate to="/" replace />;
+  }
+
+  // 상점이 생성되지 않은 상태에서 관리자가 접속하면 상점 생성 페이지로 리다이렉트
+  if (requireAdmin && isAdmin && !store && !storeLoading) {
+    if (location.pathname !== '/store-setup') {
+      return <Navigate to="/store-setup" replace />;
+    }
   }
 
   return <>{children}</>;

@@ -37,7 +37,7 @@ export default function TopBar() {
                 <span className="text-white text-xl">🍜</span>
               </div>
             )}
-            <span className="text-xl font-bold text-primary-600">
+            <span className="text-lg font-bold text-primary-600 max-w-[160px] leading-tight text-left line-clamp-2">
               {store?.name || '배달앱'}
             </span>
           </Link>
@@ -120,12 +120,12 @@ function NavLink({ to, icon, badge, children }: { to: string; icon?: React.React
   return (
     <Link
       to={to}
-      className="relative flex items-center space-x-1.5 px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+      className="relative flex items-center space-x-1 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-lg transition-colors whitespace-nowrap"
     >
       {icon}
       <span>{children}</span>
       {badge !== undefined && badge > 0 && (
-        <span className="absolute -top-1 -right-1 flex items-center justify-center w-5 h-5 text-xs text-white gradient-primary rounded-full">
+        <span className="absolute -top-1 -right-1 flex items-center justify-center w-4 h-4 text-[10px] text-white gradient-primary rounded-full">
           {badge > 99 ? '99+' : badge}
         </span>
       )}

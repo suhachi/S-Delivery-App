@@ -2,9 +2,17 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
+    // Helper function to check admin privileges
+    function isAuthorizedAdmin() {
+      return request.auth != null && (
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid)) || 
+        exists(/databases/$(database)/documents/adminStores/$(request.auth.uid + '_default')) ||
+        request.auth.token.email == 'jsbae59@gmail.com'
+      );
+    }
+
     // =========================================================================
     // 1. PUBLIC DATA (공개 데이터)
-    // - 로그인 여부와 관계없이 누구나 읽을 수 있어야 함
     // =========================================================================
     
     // 상점 정보
@@ -15,19 +23,19 @@ service cloud.firestore {
       // 메뉴
       match /menus/{menuId} {
         allow read: if true;
-        allow write: if false;
+        allow write: if isAuthorizedAdmin();
       }
       
       // 공지사항
       match /notices/{noticeId} {
         allow read: if true;
-        allow write: if false;
+        allow write: if isAuthorizedAdmin();
       }
       
       // 이벤트
       match /events/{eventId} {
         allow read: if true;
-        allow write: if false;
+        allow write: if isAuthorizedAdmin();
       }
       
       // 리뷰 (읽기는 공개)
@@ -52,7 +60,6 @@ service cloud.firestore {
 
     // =========================================================================
     // 2. USER DATA (사용자 데이터)
-    // - 본인 데이터는 본인이 읽을 수 있어야 함 (문서가 없어도 에러 나지 않게)
     // =========================================================================
     
     // 사용자 프로필
@@ -63,25 +70,18 @@ service cloud.firestore {
     
     // 시스템 관리자 목록
     match /admins/{userId} {
-      // 내 권한 확인을 위해 읽기 허용
       allow read: if request.auth != null && request.auth.uid == userId;
     }
     
     // 관리자-상점 매핑
     match /adminStores/{docId} {
-      // 문서 ID가 "{uid}_{storeId}" 형식이므로, 내 uid로 시작하는 문서는 읽기 허용
       allow read: if request.auth != null && docId.matches('^' + request.auth.uid + '_.*');
       allow write: if false;
     }
 
     // =========================================================================
     // 3. SYSTEM ADMIN (시스템 관리자)
-    // - 시스템 관리자는 모든 접근 허용 (위 규칙들보다 우선하거나 보완)
-    // - 실제 운영 시에는 더 엄격하게 관리 필요
     // =========================================================================
-    
-    // (보안 강화를 위해 여기서는 별도 와일드카드 규칙을 두지 않고, 필요한 곳에 '|| isSystemAdmin()' 추가를 권장하지만,
-    //  현재 "권한 없음" 오류 해결이 급선무이므로 위 기본 규칙들로 충분함)
     
     match /{document=**} {
       allow read, write: if false;
