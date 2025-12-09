@@ -7,6 +7,7 @@ import { useStore } from '../contexts/StoreContext';
 import { useFirestoreCollection } from '../hooks/useFirestoreCollection';
 import { getAllMenusQuery } from '../services/menuService';
 import { Menu } from '../types/menu';
+import ReviewPreview from '../components/review/ReviewPreview';
 
 export default function MenuPage() {
   const { store } = useStore();
@@ -107,6 +108,9 @@ export default function MenuPage() {
           </div>
         )}
       </div>
+
+      {/* Review Preview Section */}
+      <ReviewPreview />
     </div>
   );
 }

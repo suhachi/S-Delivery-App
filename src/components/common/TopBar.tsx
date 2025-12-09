@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ShoppingCart, LogOut, User, Store, Menu, X, Bell, Gift } from 'lucide-react';
+import { ShoppingCart, LogOut, User, Store, Menu, X, Bell, Gift, MessageSquare } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '../../contexts/AuthContext';
 import { useCart } from '../../contexts/CartContext';
@@ -46,11 +46,12 @@ export default function TopBar() {
           <div className="hidden md:flex items-center space-x-1">
             <NavLink to="/menu" icon={null}>메뉴</NavLink>
             <NavLink to="/events" icon={<Gift className="w-4 h-4" />}>이벤트</NavLink>
+            <NavLink to="/reviews" icon={<MessageSquare className="w-4 h-4" />}>리뷰 게시판</NavLink>
             <NavLink to="/notices" icon={<Bell className="w-4 h-4" />}>공지사항</NavLink>
+            <NavLink to="/orders" icon={null}>내 주문</NavLink>
             <NavLink to="/cart" icon={<ShoppingCart className="w-4 h-4" />} badge={cartItemsCount}>
               장바구니
             </NavLink>
-            <NavLink to="/orders" icon={null}>내 주문</NavLink>
             <NavLink to="/mypage" icon={<User className="w-4 h-4" />}>마이페이지</NavLink>
             {isAdmin && (
               <NavLink to="/admin" icon={<Store className="w-4 h-4" />}>
@@ -95,11 +96,11 @@ export default function TopBar() {
             <MobileNavLink to="/notices" onClick={() => setMobileMenuOpen(false)}>
               공지사항
             </MobileNavLink>
-            <MobileNavLink to="/cart" onClick={() => setMobileMenuOpen(false)} badge={cartItemsCount}>
-              장바구니
-            </MobileNavLink>
             <MobileNavLink to="/orders" onClick={() => setMobileMenuOpen(false)}>
               내 주문
+            </MobileNavLink>
+            <MobileNavLink to="/cart" onClick={() => setMobileMenuOpen(false)} badge={cartItemsCount}>
+              장바구니
             </MobileNavLink>
             <MobileNavLink to="/mypage" onClick={() => setMobileMenuOpen(false)}>
               마이페이지

@@ -1,7 +1,7 @@
 import { Star, User } from 'lucide-react';
 import { useStore } from '../../contexts/StoreContext';
 import { useFirestoreCollection } from '../../hooks/useFirestoreCollection';
-import { getReviewsPath } from '../../lib/firestorePaths';
+import { getAllReviewsQuery } from '../../services/reviewService';
 import { Review } from '../../types/review';
 import Card from '../common/Card';
 import { formatDate } from '../../utils/formatDate';
@@ -12,7 +12,7 @@ export default function ReviewList() {
 
   // Firestore에서 리뷰 조회 (최신순)
   const { data: reviews, loading } = useFirestoreCollection<Review>(
-    storeId ? getReviewsPath(storeId) : null
+    storeId ? getAllReviewsQuery(storeId) : null
   );
 
   if (!storeId) {
@@ -123,8 +123,8 @@ function ReviewCard({ review }: { review: Review }) {
                   <Star
                     key={star}
                     className={`w-4 h-4 ${star <= review.rating
-                        ? `fill-current ${ratingColor}`
-                        : 'text-gray-300'
+                      ? `fill-current ${ratingColor}`
+                      : 'text-gray-300'
                       }`}
                   />
                 ))}

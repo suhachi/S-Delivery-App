@@ -21,6 +21,7 @@ import AdminEventManagement from './pages/admin/AdminEventManagement';
 import AdminStoreSettings from './pages/admin/AdminStoreSettings';
 import NoticePage from './pages/NoticePage';
 import EventsPage from './pages/EventsPage';
+import ReviewBoardPage from './pages/ReviewBoardPage';
 import { CartProvider } from './contexts/CartContext';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { StoreProvider, useStore } from './contexts/StoreContext';
@@ -108,9 +109,15 @@ function AppContent() {
           <Route path="/nicepay/return" element={<NicepayReturnPage />} />
           <Route path="/notices" element={<NoticePage />} />
           <Route path="/events" element={<EventsPage />} />
+
+          {/* ... (imports remain the same) */}
+
+          {/* ... inside AppContent routes ... */}
           <Route path="/orders" element={<RequireAuth><OrdersPage /></RequireAuth>} />
           <Route path="/orders/:orderId" element={<RequireAuth><OrderDetailPage /></RequireAuth>} />
+          <Route path="/reviews" element={<ReviewBoardPage />} />
           <Route path="/checkout" element={<RequireAuth><CheckoutPage /></RequireAuth>} />
+
           <Route path="/mypage" element={<RequireAuth><MyPage /></RequireAuth>} />
 
           {/* Admin Routes */}

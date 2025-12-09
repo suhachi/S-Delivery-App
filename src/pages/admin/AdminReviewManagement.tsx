@@ -114,7 +114,7 @@ export default function AdminReviewManagement() {
       <AdminSidebar />
 
       <div className="flex-1">
-        <TopBar title="리뷰 관리" />
+
 
         <div className="p-6 max-w-7xl mx-auto">
           {/* 통계 */}
