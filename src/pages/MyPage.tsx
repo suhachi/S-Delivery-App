@@ -1,8 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useStore } from '../contexts/StoreContext';
-import { User, ShoppingBag, Ticket, Bell, Store, ChevronRight, LogOut } from 'lucide-react';
+import { User, ShoppingBag, Ticket, Bell, Store, ChevronRight, LogOut, Package } from 'lucide-react';
 import Card from '../components/common/Card';
 import { Order } from '../types/order';
 import { Coupon } from '../types/coupon';
@@ -34,88 +34,67 @@ export default function MyPage() {
 
   const { data: allOrders, loading: ordersLoading } = useFirestoreCollection<Order>(ordersQuery);
 
-  // 최근 3개만 잘라서 표시
-  const recentOrders = allOrders ? allOrders.slice(0, 3) : [];
+  // 헬퍼 함수: Firestore Timestamp 처리를 위한 toDate
+  const toDate = (date: any): Date => {
+    if (date?.toDate) return date.toDate();
+    if (date instanceof Date) return date;
+    if (typeof date === 'string') return new Date(date);
+    return new Date();
+  };
+
+  // 최근 3개만 잘라서 표시 (결제대기 상태는 제외 - 미결제 주문 건)
+  const recentOrders = allOrders
+    ? allOrders.filter(o => o.status !== '결제대기').slice(0, 3)
+    : [];
 
   // 2. 사용 가능한 쿠폰 조회 (실데이터)
-  // 현재는 "상점의 활성 쿠폰"을 모두 보여주는 정책 (개인별 쿠폰함 기능이 아직 없다면)
   const couponsQuery = store?.id ? getActiveCouponsQuery(store.id) : null;
   const { data: availableCoupons, loading: couponsLoading } = useFirestoreCollection<Coupon>(couponsQuery);
-
-  useEffect(() => {
-    // 알림 설정 상태 확인 (단순 브라우저 API 체크)
-    if ('Notification' in window) {
-      setNotificationEnabled(Notification.permission === 'granted');
-    }
-  }, []);
 
   const handleLogout = async () => {
     try {
       await logout();
-      navigate('/');
+      navigate('/login');
+      toast.success('로그아웃되었습니다');
     } catch (error) {
-      console.error('로그아웃 실패:', error);
-      toast.error('로그아웃 중 오류가 발생했습니다.');
+      toast.error('로그아웃 실패');
     }
   };
 
-  const handleNotificationToggle = async () => {
-    if (!('Notification' in window)) {
-      toast.error('이 브라우저는 알림을 지원하지 않습니다.');
-      return;
-    }
-
-    if (Notification.permission === 'granted') {
-      toast.info('알림을 비활성화하려면 브라우저 설정에서 변경해주세요.');
-    } else {
-      const permission = await Notification.requestPermission();
-      setNotificationEnabled(permission === 'granted');
-
-      if (permission === 'granted') {
-        // 추후 FCM 토큰 발급 로직 추가 예정
-        toast.success('알림이 활성화되었습니다!');
-      }
-    }
+  const handleNotificationToggle = () => {
+    setNotificationEnabled(!notificationEnabled);
+    toast.success(`알림이 ${!notificationEnabled ? '켜졌습니다' : '꺼졌습니다'}`);
   };
-
-  if (!user) {
-    return null;
-  }
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-20">
-      {/* 헤더 */}
-      <div className="gradient-primary text-white py-8 px-4">
-        <div className="max-w-4xl mx-auto">
-          <h1 className="text-2xl mb-4">마이페이지</h1>
-          <div className="flex items-center gap-4">
-            <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center text-3xl">
-              <User className="w-8 h-8" />
-            </div>
-            <div>
-              <p className="text-xl">{user.displayName || '사용자'}</p>
-              <p className="text-sm text-white/80">{user.email}</p>
-            </div>
+    <div className="min-h-screen bg-gray-50 py-8">
+      <div className="container mx-auto px-4 mb-20">
+        {/* 프로필 섹션 */}
+        <div className="flex items-center gap-4 mb-8">
+          <div className="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center">
+            <User className="w-8 h-8 text-gray-500" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">
+              {user?.displayName || '고객'}님
+            </h1>
+            <p className="text-gray-500">{user?.email}</p>
           </div>
         </div>
-      </div>
 
-      <div className="max-w-4xl mx-auto px-4 -mt-6">
-        {/* 2열 2행 그리드 레이아웃 */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* 주문내역 */}
+        <div className="space-y-6">
+          {/* 최근 주문 내역 */}
           <Card className="p-6">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
                 <ShoppingBag className="w-5 h-5 text-blue-600" />
-                <h2 className="text-lg">주문내역</h2>
+                <h2 className="text-lg">최근 주문 내역</h2>
               </div>
               <button
                 onClick={() => navigate('/orders')}
-                className="text-sm text-blue-600 hover:text-blue-700 flex items-center gap-1"
+                className="text-sm text-gray-500 hover:text-gray-700 flex items-center"
               >
-                전체보기
-                <ChevronRight className="w-4 h-4" />
+                전체보기 <ChevronRight className="w-4 h-4 ml-1" />
               </button>
             </div>
 
@@ -124,7 +103,7 @@ export default function MyPage() {
                 <p className="text-sm">로딩 중...</p>
               </div>
             ) : recentOrders.length > 0 ? (
-              <div className="space-y-3">
+              <div className="space-y-4">
                 {recentOrders.map((order) => (
                   <div
                     key={order.id}
@@ -132,13 +111,15 @@ export default function MyPage() {
                     onClick={() => navigate(`/orders/${order.id}`)}
                   >
                     <div>
-                      <p className="text-sm">{order.items[0]?.name} 외 {order.items.length - 1}개</p>
+                      <p className="text-sm font-medium">
+                        {order.items[0]?.name} {order.items.length > 1 ? `외 ${order.items.length - 1}개` : ''}
+                      </p>
                       <p className="text-xs text-gray-500">
-                        {new Date(order.createdAt).toLocaleDateString('ko-KR')}
+                        {toDate(order.createdAt).toLocaleDateString('ko-KR')}
                       </p>
                     </div>
                     <div className="text-right">
-                      <p className="text-sm">{order.totalPrice.toLocaleString()}원</p>
+                      <p className="text-sm font-bold">{order.totalPrice.toLocaleString()}원</p>
                       <p className="text-xs text-blue-600">{order.status}</p>
                     </div>
                   </div>
@@ -146,6 +127,7 @@ export default function MyPage() {
               </div>
             ) : (
               <div className="text-center py-8 text-gray-500">
+                <Package className="w-8 h-8 mx-auto mb-2 text-gray-300" />
                 <p className="text-sm">주문 내역이 없습니다</p>
               </div>
             )}
@@ -175,7 +157,7 @@ export default function MyPage() {
                     <div>
                       <p className="font-medium">{coupon.name}</p>
                       <p className="text-xs text-gray-500">
-                        {coupon.validUntil ? new Date(coupon.validUntil).toLocaleDateString('ko-KR') + '까지' : '유효기간 없음'}
+                        {coupon.validUntil ? toDate(coupon.validUntil).toLocaleDateString('ko-KR') + '까지' : '유효기간 없음'}
                       </p>
                     </div>
                     <div className="text-right">
@@ -205,17 +187,15 @@ export default function MyPage() {
                   <p className="text-sm text-gray-500">주문 상태 변경 시 알림을 받습니다</p>
                 </div>
               </div>
+              <button
+                onClick={handleNotificationToggle}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${notificationEnabled ? 'bg-blue-600' : 'bg-gray-300'}`}
+              >
+                <span
+                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${notificationEnabled ? 'translate-x-6' : 'translate-x-1'}`}
+                />
+              </button>
             </div>
-            <button
-              onClick={handleNotificationToggle}
-              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${notificationEnabled ? 'bg-blue-600' : 'bg-gray-300'
-                }`}
-            >
-              <span
-                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${notificationEnabled ? 'translate-x-6' : 'translate-x-1'
-                  }`}
-              />
-            </button>
           </Card>
 
           {/* 가게 정보 */}
@@ -276,28 +256,28 @@ export default function MyPage() {
               </div>
             </Card>
           )}
-        </div>
 
-        {/* 로그아웃 */}
-        <Card className="p-6 mt-4">
-          <button
-            onClick={handleLogout}
-            className="w-full flex items-center justify-center gap-2 text-red-600 hover:text-red-700 transition-colors"
-          >
-            <LogOut className="w-5 h-5" />
-            <span>로그아웃</span>
-          </button>
-        </Card>
+          {/* 로그아웃 */}
+          <Card className="p-6 mt-4">
+            <button
+              onClick={handleLogout}
+              className="w-full flex items-center justify-center gap-2 text-red-600 hover:text-red-700 transition-colors"
+            >
+              <LogOut className="w-5 h-5" />
+              <span>로그아웃</span>
+            </button>
+          </Card>
 
-        {/* 개발사 정보 */}
-        <div className="mt-8 mb-4 text-center">
-          <p className="text-xs text-gray-400 font-medium">Powered by KS Company</p>
-          <div className="flex items-center justify-center gap-2 mt-1 text-[10px] text-gray-400">
-            <span>개발사: KS컴퍼니</span>
-            <span className="w-px h-2 bg-gray-300"></span>
-            <span>대표: 석경선, 배종수</span>
+          {/* 개발사 정보 */}
+          <div className="mt-8 mb-4 text-center">
+            <p className="text-xs text-gray-400 font-medium">Powered by KS Company</p>
+            <div className="flex items-center justify-center gap-2 mt-1 text-[10px] text-gray-400">
+              <span>개발사: KS컴퍼니</span>
+              <span className="w-px h-2 bg-gray-300"></span>
+              <span>대표: 석경선, 배종수</span>
+            </div>
+            <p className="text-[10px] text-gray-300 mt-1">© 2024 Simple Delivery App Template. All rights reserved.</p>
           </div>
-          <p className="text-[10px] text-gray-300 mt-1">© 2024 Simple Delivery App Template. All rights reserved.</p>
         </div>
       </div>
     </div>

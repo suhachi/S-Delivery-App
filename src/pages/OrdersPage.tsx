@@ -12,6 +12,14 @@ import { useFirestoreCollection } from '../hooks/useFirestoreCollection';
 import { getUserOrdersQuery } from '../services/orderService';
 import { Order } from '../types/order';
 
+// 헬퍼 함수: Firestore Timestamp 처리를 위한 toDate
+const toDate = (date: any): Date => {
+  if (date?.toDate) return date.toDate();
+  if (date instanceof Date) return date;
+  if (typeof date === 'string') return new Date(date);
+  return new Date();
+};
+
 export default function OrdersPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -26,7 +34,7 @@ export default function OrdersPage() {
   const { data: allOrders, loading } = useFirestoreCollection<Order>(ordersQuery);
 
   const filteredOrders = filter === '전체'
-    ? (allOrders || [])
+    ? (allOrders || []).filter(order => order.status !== '결제대기')
     : (allOrders || []).filter(order => order.status === filter);
 
   const filters: (OrderStatus | '전체')[] = ['전체', '접수', '조리중', '배달중', '완료', '취소'];
@@ -134,7 +142,7 @@ function OrderCard({ order, onClick }: { order: Order; onClick: () => void }) {
               </div>
               <div>
                 <p className="text-sm text-gray-600">
-                  {new Date(order.createdAt).toLocaleDateString('ko-KR', {
+                  {toDate(order.createdAt).toLocaleDateString('ko-KR', {
                     year: 'numeric',
                     month: 'long',
                     day: 'numeric',
@@ -142,7 +150,7 @@ function OrderCard({ order, onClick }: { order: Order; onClick: () => void }) {
                     minute: '2-digit',
                   })}
                 </p>
-                <p className="text-xs text-gray-500">주문번호: {order.id}</p>
+                <p className="text-xs text-gray-500">주문번호: {order.id.slice(0, 8)}</p>
               </div>
             </div>
             <Badge variant={

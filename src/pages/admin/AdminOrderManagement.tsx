@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Package, Clock, MapPin, Phone, CreditCard, ChevronDown } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Package, MapPin, Phone, CreditCard, ChevronDown } from 'lucide-react';
 import { Order, OrderStatus, ORDER_STATUS_LABELS, ORDER_STATUS_COLORS, PAYMENT_TYPE_LABELS } from '../../types/order';
 import { toast } from 'sonner';
 import AdminSidebar from '../../components/admin/AdminSidebar';
@@ -9,6 +9,15 @@ import Badge from '../../components/common/Badge';
 import { useStore } from '../../contexts/StoreContext';
 import { useFirestoreCollection } from '../../hooks/useFirestoreCollection';
 import { updateOrderStatus, getAllOrdersQuery } from '../../services/orderService';
+import AdminOrderAlert from '../../components/admin/AdminOrderAlert';
+
+// 헬퍼 함수: Firestore Timestamp 처리를 위한 toDate
+function toDate(date: any): Date {
+  if (date?.toDate) return date.toDate();
+  if (date instanceof Date) return date;
+  if (typeof date === 'string') return new Date(date);
+  return new Date();
+}
 
 // 헬퍼 함수: 다음 주문 상태 계산
 function getNextStatus(currentStatus: OrderStatus): OrderStatus | null {
@@ -26,15 +35,12 @@ export default function AdminOrderManagement() {
   const [expandedOrder, setExpandedOrder] = useState<string | null>(null);
 
   // Firestore에서 주문 조회 (삭제되지 않은 주문만)
-  // getAllOrdersQuery() 내에서 정렬 및 필터 적용 이미 되어 있음.
-  // 주의: order.ts의 getAllOrdersQuery는 'deleted' 필드 등을 이미 처리하고 있어야 함.
-  // 여기서는 클라이언트 사이드 필터링 사용
-  const { data: allOrders, loading } = useFirestoreCollection<Order>(
+  const { data: allOrders } = useFirestoreCollection<Order>(
     store?.id ? getAllOrdersQuery(store.id) : null
   );
 
   const filteredOrders = filter === '전체'
-    ? (allOrders || [])
+    ? (allOrders || []).filter(order => order.status !== '결제대기')
     : (allOrders || []).filter(order => order.status === filter);
 
   const filters: (OrderStatus | '전체')[] = ['전체', '접수', '조리중', '배달중', '완료', '취소'];
@@ -44,14 +50,28 @@ export default function AdminOrderManagement() {
     try {
       await updateOrderStatus(store.id, orderId, newStatus);
       toast.success(`주문 상태가 '${ORDER_STATUS_LABELS[newStatus]}'(으)로 변경되었습니다`);
-    } catch (error) {
-      toast.error('주문 상태 변경에 실패했습니다');
+
+      // 주문 접수 시 영수증 자동 출력 (시뮬레이션)
+      if (newStatus === '접수') {
+        setTimeout(() => {
+          window.print();
+        }, 500); // UI 업데이트 후 출력
+      }
+
+    } catch (error: any) {
+      console.error(error);
+      if (error?.code === 'permission-denied') {
+        toast.error('주문 상태를 변경할 권한이 없습니다.');
+      } else {
+        toast.error('주문 상태 변경에 실패했습니다');
+      }
     }
   };
 
   return (
     <div className="flex min-h-screen bg-gray-50">
       <AdminSidebar />
+      <AdminOrderAlert />
 
       <main className="flex-1 p-8">
         <div className="max-w-7xl mx-auto">
@@ -137,7 +157,7 @@ function OrderCard({ order, isExpanded, onToggleExpand, onStatusChange }: OrderC
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-center space-x-3 mb-2">
-                <h3 className="font-bold text-gray-900">주문 #{order.id}</h3>
+                <h3 className="font-bold text-gray-900">주문 #{order.id.slice(0, 8)}</h3>
                 <Badge
                   variant={
                     order.status === '완료' ? 'success' :
@@ -153,7 +173,7 @@ function OrderCard({ order, isExpanded, onToggleExpand, onStatusChange }: OrderC
                 {order.items.length}개 상품 · {order.totalPrice.toLocaleString()}원
               </p>
               <p className="text-xs text-gray-500">
-                {new Date(order.createdAt).toLocaleString('ko-KR')}
+                {toDate(order.createdAt).toLocaleString('ko-KR')}
               </p>
             </div>
           </div>
@@ -245,26 +265,10 @@ function OrderCard({ order, isExpanded, onToggleExpand, onStatusChange }: OrderC
                     다음 단계로 ({ORDER_STATUS_LABELS[nextStatus]})
                   </Button>
                 )}
-                <Button
-                  variant="outline"
-                  onClick={() => onStatusChange(order.id, '조리중')}
-                  disabled={order.status === '조리중'}
-                >
-                  조리중
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={() => onStatusChange(order.id, '배달중')}
-                  disabled={order.status === '배달중'}
-                >
-                  배달중
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={() => onStatusChange(order.id, '완료')}
-                >
-                  완료
-                </Button>
+                {/* Manual Status Buttons (Optional but kept for flexibility) */}
+                <div className="hidden sm:flex gap-2 border-l pl-2 ml-2 border-gray-300">
+                  {/* Can expand if needed */}
+                </div>
                 <Button
                   variant="danger"
                   onClick={() => {
@@ -272,6 +276,7 @@ function OrderCard({ order, isExpanded, onToggleExpand, onStatusChange }: OrderC
                       onStatusChange(order.id, '취소');
                     }
                   }}
+                  className="ml-auto"
                 >
                   취소
                 </Button>

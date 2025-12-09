@@ -12,6 +12,7 @@ import Input from '../components/common/Input';
 import AddressSearchModal from '../components/common/AddressSearchModal';
 import { Coupon } from '../types/coupon';
 import { createOrder } from '../services/orderService';
+import { useCoupon } from '../services/couponService';
 import { OrderStatus } from '../types/order';
 import { useFirestoreCollection } from '../hooks/useFirestoreCollection';
 import { getCouponsPath } from '../lib/firestorePaths';
@@ -70,11 +71,12 @@ export default function CheckoutPage() {
 
     const isValidPeriod = validFrom <= now && validUntil >= now;
     const isValidAmount = itemsTotal >= minOrderAmount;
+    const isNotUsed = !coupon.usedByUserIds?.includes(user?.id || '');
 
     // 디버깅을 위해 로그 추가 (필요시 제거)
     // console.log(`Coupon ${coupon.name}: Active=${coupon.isActive}, Period=${isValidPeriod}, Amount=${isValidAmount}`);
 
-    return coupon.isActive && isValidPeriod && isValidAmount;
+    return coupon.isActive && isValidPeriod && isValidAmount && isNotUsed;
   });
 
   // 쿠폰 할인 금액 계산
@@ -142,6 +144,11 @@ export default function CheckoutPage() {
     setIsSubmitting(true);
 
     try {
+      // 결제 타입에 따른 초기 상태 설정
+      // 앱결제: '결제대기' -> PG 결제 후 '접수'로 변경 (서버)
+      // 그 외(만나서 결제 등): 바로 '접수' 상태로 생성
+      const initialStatus: OrderStatus = formData.paymentType === '앱결제' ? '결제대기' : '접수';
+
       const pendingOrderData = {
         userId: user.id,
         userDisplayName: user.displayName || '사용자',
@@ -159,18 +166,45 @@ export default function CheckoutPage() {
         couponName: selectedCoupon?.name || null,
         adminDeleted: false,
         reviewed: false,
-        paymentStatus: '결제대기' as const, // 초기 상태
+        paymentStatus: '결제대기' as const, // 결제 완료 여부와 별개
       };
 
-      // 1. 주문을 먼저 '결제대기' 상태로 생성 (createOrder 내부에서 status: '결제대기' 처리 필요하거나 여기서 명시)
-      // orderService의 createOrder가 status를 덮어쓰지 않도록 수정 필요.
-      // 일단 createOrder 호출 시 status 필드를 포함해서 보냅니다.
+      // 1. 주문 생성 (초기 상태 포함)
       const orderId = await createOrder(storeId, {
         ...pendingOrderData,
-        status: '결제대기' as OrderStatus
+        status: initialStatus
       });
 
-      // 2. 결제 수단이 '앱결제'인 경우 NICEPAY 호출
+      // 2. 쿠폰 사용 처리 (주문 생성 성공 시)
+      if (selectedCoupon && storeId && user?.id) {
+        try {
+          await useCoupon(storeId, selectedCoupon.id, user.id);
+        } catch (couponError) {
+          console.error('Failed to use coupon, rolling back order:', couponError);
+          // 쿠폰 처리 실패 시 주문 삭제 (롤백)
+          // 임시로 deleteDoc을 직접 사용하거나 cancelOrder로 대체 가능하지만, 아예 삭제하는 것이 맞음.
+          // 여기서는 에러를 던져서 아래 catch 블록으로 이동시키되, 그 전에 삭제 로직 필요.
+          // createOrder가 성공했으므로 orderId가 존재함.
+
+          // 동적 import로 deleteDoc 등 가져와서 처리하기 보다는, 일단은 에러 메시지 명확히 하고
+          // 사용자에게 '주문 실패 (쿠폰 오류)' 알림. 
+          // 하지만 중복 주문 방지를 위해 여기서 삭제 api 호출이 이상적임.
+          // 간단히는: 에러를 throw하고, 사용자가 다시 시도하게 함. 
+          // 하지만 이미 생성된 주문이 남는게 문제.
+
+          // 해결책: 주문 생성 후 쿠폰 사용이 아니라, 트랜잭션으로 묶는게 베스트지만 
+          // Firestore 클라이언트 SDK에서 서로 다른 컬렉션(주문/쿠폰) 트랜잭션은 가능.
+          // 하지만 지금 구조상 복잡하므로, 롤백 코드를 추가.
+
+          const { doc, deleteDoc } = await import('firebase/firestore');
+          const { db } = await import('../lib/firebase');
+          await deleteDoc(doc(db, 'stores', storeId, 'orders', orderId));
+
+          throw new Error('쿠폰 적용에 실패하여 주문이 취소되었습니다.');
+        }
+      }
+
+      // 3. 결제 수단이 '앱결제'인 경우 NICEPAY 호출
       if (formData.paymentType === '앱결제') {
         const clientId = import.meta.env.VITE_NICEPAY_CLIENT_ID;
         if (!clientId) {
@@ -193,19 +227,12 @@ export default function CheckoutPage() {
           returnUrl: import.meta.env.VITE_NICEPAY_RETURN_URL || `${window.location.origin}/nicepay/return`,
         });
 
-        // NICEPAY 호출 후에는 여기서 리다이렉트되므로 추가 로직 불필요
       } else {
-        // 만나서 결제인 경우 (기존 로직 유지)
-        // 단, 상태는 '접수'로 바로 넘어가야 함 -> createOrder 수정 필요하거나 update 필요
-        // 여기서는 간단히 '접수'로 다시 업데이트해줌
-        const { updateOrderStatus } = await import('../services/orderService');
-        await updateOrderStatus(storeId, orderId, '접수');
-
+        // 만나서 결제인 경우: 이미 '접수' 상태로 생성되었으므로 추가 업데이트 불필요
         clearCart();
         toast.success('주문이 접수되었습니다! 🎉');
         navigate('/orders');
       }
-
     } catch (error) {
       console.error('Order creation error:', error);
       toast.error('주문 처리 중 오류가 발생했습니다');

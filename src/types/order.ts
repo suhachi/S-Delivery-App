@@ -12,6 +12,9 @@ export interface Order {
   userId: string;
   items: OrderItem[];
   totalPrice: number;
+  discountAmount?: number;
+  couponId?: string;
+  couponName?: string;
   status: OrderStatus;
   address: string;
   phone: string;

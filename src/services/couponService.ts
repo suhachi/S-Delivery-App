@@ -8,7 +8,8 @@ import {
   query,
   where,
   orderBy,
-  increment
+  increment,
+  arrayUnion
 } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { Coupon } from '../types/coupon';

@@ -49,6 +49,14 @@ export default function OrderDetailPage() {
     );
   }
 
+  // 헬퍼 함수: Firestore Timestamp 처리를 위한 toDate
+  const toDate = (date: any): Date => {
+    if (date?.toDate) return date.toDate();
+    if (date instanceof Date) return date;
+    if (typeof date === 'string') return new Date(date);
+    return new Date();
+  };
+
   const statusColor = ORDER_STATUS_COLORS[order.status as OrderStatus] || ORDER_STATUS_COLORS['접수'];
 
   const handleReorder = () => {
@@ -93,7 +101,7 @@ export default function OrderDetailPage() {
                     {ORDER_STATUS_LABELS[order.status as OrderStatus]}
                   </h2>
                   <p className="text-sm text-gray-600">
-                    {order.createdAt ? new Date(order.createdAt).toLocaleString('ko-KR') : '-'}
+                    {toDate(order.createdAt).toLocaleString('ko-KR')}
                   </p>
                 </div>
               </div>

@@ -49,13 +49,14 @@ service cloud.firestore {
       match /orders/{orderId} {
          allow read: if request.auth != null && (resource.data.userId == request.auth.uid || exists(/databases/$(database)/documents/admins/$(request.auth.uid)));
          allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
-         allow update: if false; // 상태 변경은 관리자만
+         allow update: if isAuthorizedAdmin(); // 상태 변경은 관리자만
       }
       
-      // 쿠폰 (본인만)
+      // 쿠폰 (읽기는 공개, 생성/삭제는 관리자, 수정은 사용 처리 위해 로그인 유저 허용)
       match /coupons/{couponId} {
         allow read: if true;
-        allow write: if isAuthorizedAdmin();
+        allow create, delete: if isAuthorizedAdmin();
+        allow update: if isAuthorizedAdmin() || request.auth != null;
       }
     }
 
