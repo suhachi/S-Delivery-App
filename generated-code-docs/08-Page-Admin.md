@@ -1,6 +1,6 @@
 ﻿# 08-Page-Admin
 
-Generated: 2025-12-10 01:44:09
+Generated: 2025-12-10 02:47:48
 
 ---
 
@@ -2117,9 +2117,17 @@ function toDate(date: any): Date {
 }
 
 // 헬퍼 함수: 다음 주문 상태 계산
-function getNextStatus(currentStatus: OrderStatus): OrderStatus | null {
-  const statusFlow: OrderStatus[] = ['접수', '접수완료', '조리중', '배달중', '완료'];
+function getNextStatus(order: Order): OrderStatus | null {
+  const currentStatus = order.status;
+  const isPickup = order.orderType === '포장주문';
+
+  // 상태 흐름 정의
+  const deliveryFlow: OrderStatus[] = ['접수', '접수완료', '조리중', '배달중', '완료'];
+  const pickupFlow: OrderStatus[] = ['접수', '접수완료', '조리중', '조리완료', '포장완료'];
+
+  const statusFlow = isPickup ? pickupFlow : deliveryFlow;
   const currentIndex = statusFlow.indexOf(currentStatus);
+
   if (currentIndex >= 0 && currentIndex < statusFlow.length - 1) {
     return statusFlow[currentIndex + 1];
   }
@@ -2140,7 +2148,8 @@ export default function AdminOrderManagement() {
     ? (allOrders || []).filter(order => order.status !== '결제대기')
     : (allOrders || []).filter(order => order.status === filter);
 
-  const filters: (OrderStatus | '전체')[] = ['전체', '접수', '접수완료', '조리중', '배달중', '완료', '취소'];
+  // 필터 순서 업데이트 (조리완료, 포장완료 추가)
+  const filters: (OrderStatus | '전체')[] = ['전체', '접수', '접수완료', '조리중', '조리완료', '배달중', '포장완료', '완료', '취소'];
 
   const handleStatusChange = async (orderId: string, newStatus: OrderStatus) => {
     if (!store?.id) return;
@@ -2148,8 +2157,8 @@ export default function AdminOrderManagement() {
       await updateOrderStatus(store.id, orderId, newStatus);
       toast.success(`주문 상태가 '${ORDER_STATUS_LABELS[newStatus]}'(으)로 변경되었습니다`);
 
-      // 주문 접수 시 영수증 자동 출력 (시뮬레이션)
-      if (newStatus === '접수') {
+      // 주문 접수(확인) 시 영수증 자동 출력 (시뮬레이션)
+      if (newStatus === '접수완료') {
         setTimeout(() => {
           window.print();
         }, 500); // UI 업데이트 후 출력
@@ -2253,7 +2262,8 @@ interface OrderCardProps {
 
 function OrderCard({ order, isExpanded, onToggleExpand, onStatusChange, onDelete }: OrderCardProps) {
   const statusColor = ORDER_STATUS_COLORS[order.status as OrderStatus];
-  const nextStatus = getNextStatus(order.status);
+  // getNextStatus 업데이트 (order 객체 전달)
+  const nextStatus = getNextStatus(order);
 
   return (
     <Card padding="none" className="overflow-hidden">
@@ -2366,7 +2376,7 @@ function OrderCard({ order, isExpanded, onToggleExpand, onStatusChange, onDelete
           </div>
 
           {/* Status Actions */}
-          {order.status !== '완료' && order.status !== '취소' && (
+          {order.status !== '완료' && order.status !== '취소' && order.status !== '포장완료' && (
             <div className="pt-4 border-t border-gray-200">
               <h4 className="font-semibold text-gray-900 mb-3">주문 상태 변경</h4>
               <div className="flex gap-2">
@@ -2396,7 +2406,7 @@ function OrderCard({ order, isExpanded, onToggleExpand, onStatusChange, onDelete
             </div>
           )}
           {/* Delete Button for Completed/Cancelled Orders */}
-          {(order.status === '완료' || order.status === '취소') && (
+          {(order.status === '완료' || order.status === '취소' || order.status === '포장완료') && (
             <div className="pt-4 border-t border-gray-200 text-right">
               <Button
                 variant="outline"

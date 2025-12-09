@@ -1,6 +1,6 @@
 ﻿# 07-Page-Main
 
-Generated: 2025-12-10 01:44:09
+Generated: 2025-12-10 02:47:47
 
 ---
 
@@ -300,6 +300,13 @@ export default function CheckoutPage() {
     memo: '',
     paymentType: '앱결제' as '앱결제' | '만나서카드' | '만나서현금' | '방문시결제',
   });
+
+  // 사용자 정보(전화번호) 자동 입력
+  useEffect(() => {
+    if (user?.phone && !formData.phone) {
+      setFormData(prev => ({ ...prev, phone: user.phone! }));
+    }
+  }, [user]);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -1555,6 +1562,8 @@ export default function OrderDetailPage() {
     switch (status) {
       case '접수': return '접수중';
       case '접수완료': return '접수확인';
+      case '조리완료': return '조리 완료';
+      case '포장완료': return '포장 완료';
       default: return ORDER_STATUS_LABELS[status];
     }
   };
@@ -1567,7 +1576,12 @@ export default function OrderDetailPage() {
     // navigate('/cart');
   };
 
-  const statusSteps: OrderStatus[] = ['접수', '접수완료', '조리중', '배달중', '완료'];
+  const deliverySteps: OrderStatus[] = ['접수', '접수완료', '조리중', '배달중', '완료'];
+  const pickupSteps: OrderStatus[] = ['접수', '접수완료', '조리중', '조리완료', '포장완료'];
+
+  const isPickup = order.orderType === '포장주문';
+  const statusSteps = isPickup ? pickupSteps : deliverySteps;
+
   const currentStepIndex = statusSteps.indexOf(order.status as OrderStatus);
 
   return (
@@ -1609,9 +1623,9 @@ export default function OrderDetailPage() {
               </div>
               <Badge
                 variant={
-                  order.status === '완료' ? 'success' :
+                  order.status === '완료' || order.status === '포장완료' ? 'success' :
                     order.status === '취소' ? 'danger' :
-                      order.status === '배달중' ? 'secondary' :
+                      order.status === '배달중' || order.status === '조리완료' ? 'secondary' :
                         'primary'
                 }
                 size="lg"
@@ -1748,7 +1762,7 @@ export default function OrderDetailPage() {
             <Button variant="outline" fullWidth onClick={handleReorder}>
               재주문하기
             </Button>
-            {order.status === '완료' && (
+            {(order.status === '완료' || order.status === '포장완료') && (
               <Button fullWidth onClick={() => setShowReviewModal(true)}>
                 리뷰 작성하기
               </Button>
@@ -2060,50 +2074,59 @@ export default function SignupPage() {
     password: '',
     confirmPassword: '',
     displayName: '',
+    phone: '',
   });
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const validate = () => {
     const newErrors: Record<string, string> = {};
-    
+
     if (!formData.email) {
       newErrors.email = '이메일을 입력해주세요';
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
       newErrors.email = '올바른 이메일 형식이 아닙니다';
     }
-    
+
     if (!formData.displayName) {
       newErrors.displayName = '이름을 입력해주세요';
     } else if (formData.displayName.length < 2) {
       newErrors.displayName = '이름은 최소 2자 이상이어야 합니다';
     }
-    
+
+    if (!formData.phone) {
+      newErrors.phone = '전화번호를 입력해주세요';
+    } else if (!/^[0-9-]+$/.test(formData.phone)) {
+      newErrors.phone = '숫자와 하이픈(-)만 입력 가능합니다';
+    } else if (formData.phone.length < 10) {
+      newErrors.phone = '올바른 전화번호 형식이 아닙니다';
+    }
+
     if (!formData.password) {
       newErrors.password = '비밀번호를 입력해주세요';
     } else if (formData.password.length < 6) {
       newErrors.password = '비밀번호는 최소 6자 이상이어야 합니다';
     }
-    
+
     if (!formData.confirmPassword) {
       newErrors.confirmPassword = '비밀번호를 다시 입력해주세요';
     } else if (formData.password !== formData.confirmPassword) {
       newErrors.confirmPassword = '비밀번호가 일치하지 않습니다';
     }
-    
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!validate()) return;
-    
+
     setIsLoading(true);
-    
+
     try {
-      await signup(formData.email, formData.password, formData.displayName);
+      await signup(formData.email, formData.password, formData.displayName, formData.phone);
       toast.success('회원가입이 완료되었습니다!');
       navigate('/menu');
     } catch (error: any) {
@@ -2154,7 +2177,18 @@ export default function SignupPage() {
               icon={<UserIcon className="w-5 h-5" />}
               autoComplete="name"
             />
-            
+
+            <Input
+              label="전화번호"
+              type="tel"
+              placeholder="010-1234-5678"
+              value={formData.phone}
+              onChange={(e) => updateField('phone', e.target.value)}
+              error={errors.phone}
+              icon={<Phone className="w-5 h-5" />}
+              autoComplete="tel"
+            />
+
             <Input
               label="이메일"
               type="email"
@@ -2165,7 +2199,7 @@ export default function SignupPage() {
               icon={<Mail className="w-5 h-5" />}
               autoComplete="email"
             />
-            
+
             <Input
               label="비밀번호"
               type="password"
@@ -2176,7 +2210,7 @@ export default function SignupPage() {
               icon={<Lock className="w-5 h-5" />}
               autoComplete="new-password"
             />
-            
+
             <Input
               label="비밀번호 확인"
               type="password"

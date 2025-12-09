@@ -1,6 +1,6 @@
 ﻿# 02-Type-Definitions
 
-Generated: 2025-12-10 01:44:08
+Generated: 2025-12-10 02:47:46
 
 ---
 
@@ -231,9 +231,10 @@ export interface Order {
   updatedAt?: Date;
   reviewed?: boolean;
   reviewRating?: number;
+  orderType?: '배달주문' | '포장주문'; // 주문 타입 추가
 }
 
-export type OrderStatus = '결제대기' | '결제실패' | '접수' | '접수완료' | '조리중' | '배달중' | '완료' | '취소';
+export type OrderStatus = '결제대기' | '결제실패' | '접수' | '접수완료' | '조리중' | '조리완료' | '배달중' | '포장완료' | '완료' | '취소';
 export type PaymentType = '앱결제' | '만나서카드' | '만나서현금' | '방문시결제';
 
 export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
@@ -242,7 +243,9 @@ export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
   '접수': '주문 접수',
   '접수완료': '접수 완료',
   '조리중': '조리 중',
+  '조리완료': '조리 완료',
   '배달중': '배달 중',
+  '포장완료': '포장 완료',
   '완료': '배달 완료',
   '취소': '주문 취소',
 };
@@ -253,7 +256,9 @@ export const ORDER_STATUS_COLORS: Record<OrderStatus, { bg: string; text: string
   '접수': { bg: 'bg-blue-100', text: 'text-blue-700' },
   '접수완료': { bg: 'bg-indigo-100', text: 'text-indigo-700' },
   '조리중': { bg: 'bg-orange-100', text: 'text-orange-700' },
+  '조리완료': { bg: 'bg-amber-100', text: 'text-amber-800' },
   '배달중': { bg: 'bg-purple-100', text: 'text-purple-700' },
+  '포장완료': { bg: 'bg-emerald-100', text: 'text-emerald-700' },
   '완료': { bg: 'bg-green-100', text: 'text-green-700' },
   '취소': { bg: 'bg-gray-100', text: 'text-gray-700' },
 };
