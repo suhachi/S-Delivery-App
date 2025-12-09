@@ -44,6 +44,13 @@ export default function CheckoutPage() {
     paymentType: '앱결제' as '앱결제' | '만나서카드' | '만나서현금' | '방문시결제',
   });
 
+  // 사용자 정보(전화번호) 자동 입력
+  useEffect(() => {
+    if (user?.phone && !formData.phone) {
+      setFormData(prev => ({ ...prev, phone: user.phone! }));
+    }
+  }, [user]);
+
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // 주문 타입에 따른 배달비 계산

@@ -14,50 +14,59 @@ export default function SignupPage() {
     password: '',
     confirmPassword: '',
     displayName: '',
+    phone: '',
   });
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const validate = () => {
     const newErrors: Record<string, string> = {};
-    
+
     if (!formData.email) {
       newErrors.email = '이메일을 입력해주세요';
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
       newErrors.email = '올바른 이메일 형식이 아닙니다';
     }
-    
+
     if (!formData.displayName) {
       newErrors.displayName = '이름을 입력해주세요';
     } else if (formData.displayName.length < 2) {
       newErrors.displayName = '이름은 최소 2자 이상이어야 합니다';
     }
-    
+
+    if (!formData.phone) {
+      newErrors.phone = '전화번호를 입력해주세요';
+    } else if (!/^[0-9-]+$/.test(formData.phone)) {
+      newErrors.phone = '숫자와 하이픈(-)만 입력 가능합니다';
+    } else if (formData.phone.length < 10) {
+      newErrors.phone = '올바른 전화번호 형식이 아닙니다';
+    }
+
     if (!formData.password) {
       newErrors.password = '비밀번호를 입력해주세요';
     } else if (formData.password.length < 6) {
       newErrors.password = '비밀번호는 최소 6자 이상이어야 합니다';
     }
-    
+
     if (!formData.confirmPassword) {
       newErrors.confirmPassword = '비밀번호를 다시 입력해주세요';
     } else if (formData.password !== formData.confirmPassword) {
       newErrors.confirmPassword = '비밀번호가 일치하지 않습니다';
     }
-    
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!validate()) return;
-    
+
     setIsLoading(true);
-    
+
     try {
-      await signup(formData.email, formData.password, formData.displayName);
+      await signup(formData.email, formData.password, formData.displayName, formData.phone);
       toast.success('회원가입이 완료되었습니다!');
       navigate('/menu');
     } catch (error: any) {
@@ -108,7 +117,18 @@ export default function SignupPage() {
               icon={<UserIcon className="w-5 h-5" />}
               autoComplete="name"
             />
-            
+
+            <Input
+              label="전화번호"
+              type="tel"
+              placeholder="010-1234-5678"
+              value={formData.phone}
+              onChange={(e) => updateField('phone', e.target.value)}
+              error={errors.phone}
+              icon={<Phone className="w-5 h-5" />}
+              autoComplete="tel"
+            />
+
             <Input
               label="이메일"
               type="email"
@@ -119,7 +139,7 @@ export default function SignupPage() {
               icon={<Mail className="w-5 h-5" />}
               autoComplete="email"
             />
-            
+
             <Input
               label="비밀번호"
               type="password"
@@ -130,7 +150,7 @@ export default function SignupPage() {
               icon={<Lock className="w-5 h-5" />}
               autoComplete="new-password"
             />
-            
+
             <Input
               label="비밀번호 확인"
               type="password"

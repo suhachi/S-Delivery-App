@@ -6,14 +6,15 @@ interface User {
   id: string;
   email: string;
   displayName?: string;
+  phone?: string;
 }
 
 interface AuthContextType {
   user: User | null;
   isAdmin: boolean;
   loading: boolean;
-  login: (email: string, password: string) => Promise<void>;
-  signup: (email: string, password: string, displayName?: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<any>;
+  signup: (email: string, password: string, displayName?: string, phone?: string) => Promise<any>;
   logout: () => Promise<void>;
 }
 

@@ -60,8 +60,8 @@ export default function AdminOrderManagement() {
       await updateOrderStatus(store.id, orderId, newStatus);
       toast.success(`주문 상태가 '${ORDER_STATUS_LABELS[newStatus]}'(으)로 변경되었습니다`);
 
-      // 주문 접수 시 영수증 자동 출력 (시뮬레이션)
-      if (newStatus === '접수') {
+      // 주문 접수(확인) 시 영수증 자동 출력 (시뮬레이션)
+      if (newStatus === '접수완료') {
         setTimeout(() => {
           window.print();
         }, 500); // UI 업데이트 후 출력
@@ -279,7 +279,7 @@ function OrderCard({ order, isExpanded, onToggleExpand, onStatusChange, onDelete
           </div>
 
           {/* Status Actions */}
-          {order.status !== '완료' && order.status !== '취소' && (
+          {order.status !== '완료' && order.status !== '취소' && order.status !== '포장완료' && (
             <div className="pt-4 border-t border-gray-200">
               <h4 className="font-semibold text-gray-900 mb-3">주문 상태 변경</h4>
               <div className="flex gap-2">
@@ -309,7 +309,7 @@ function OrderCard({ order, isExpanded, onToggleExpand, onStatusChange, onDelete
             </div>
           )}
           {/* Delete Button for Completed/Cancelled Orders */}
-          {(order.status === '완료' || order.status === '취소') && (
+          {(order.status === '완료' || order.status === '취소' || order.status === '포장완료') && (
             <div className="pt-4 border-t border-gray-200 text-right">
               <Button
                 variant="outline"

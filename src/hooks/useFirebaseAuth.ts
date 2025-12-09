@@ -14,6 +14,7 @@ interface User {
   id: string;
   email: string;
   displayName?: string;
+  phone?: string;
 }
 
 // 데모 계정 정보
@@ -55,14 +56,22 @@ export function useFirebaseAuth() {
     // Firebase 인증 모드
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
+        // Firestore에서 추가 정보(phone 등) 가져오기
+        const userRef = doc(db, 'users', firebaseUser.uid);
+        const userDoc = await getDoc(userRef);
+        const userData = userDoc.data();
+
         setUser({
           id: firebaseUser.uid,
           email: firebaseUser.email || '',
-          displayName: firebaseUser.displayName || undefined,
+          displayName: userData?.displayName || firebaseUser.displayName || undefined, // Firestore 데이터 우선
+          phone: userData?.phone || undefined,
         });
 
         // Firestore에 사용자 문서 생성 (없으면)
-        await ensureUserDocument(firebaseUser);
+        if (!userDoc.exists()) {
+          await ensureUserDocument(firebaseUser);
+        }
       } else {
         setUser(null);
       }
@@ -72,7 +81,7 @@ export function useFirebaseAuth() {
     return () => unsubscribe();
   }, [isDemoMode]);
 
-  const signup = async (email: string, password: string, displayName?: string) => {
+  const signup = async (email: string, password: string, displayName?: string, phone?: string) => {
     // 데모 모드
     if (isDemoMode) {
       // 데모 모드에서는 회원가입 시뮬레이션
@@ -80,6 +89,7 @@ export function useFirebaseAuth() {
         id: `demo-user-${Date.now()}`,
         email,
         displayName: displayName || email.split('@')[0],
+        phone: phone || '010-0000-0000',
       };
       setUser(newUser);
       localStorage.setItem('demoUser', JSON.stringify(newUser));
@@ -97,7 +107,7 @@ export function useFirebaseAuth() {
       }
 
       // Firestore에 사용자 문서 생성
-      await createUserDocument(userCredential.user, displayName);
+      await createUserDocument(userCredential.user, displayName, phone);
 
       return userCredential.user;
     } catch (error) {
@@ -161,12 +171,13 @@ export function useFirebaseAuth() {
 }
 
 // Firestore에 사용자 문서 생성
-async function createUserDocument(firebaseUser: FirebaseUser, displayName?: string) {
+async function createUserDocument(firebaseUser: FirebaseUser, displayName?: string, phone?: string) {
   const userRef = doc(db, 'users', firebaseUser.uid);
 
   await setDoc(userRef, {
     email: firebaseUser.email,
     displayName: displayName || firebaseUser.email?.split('@')[0] || '',
+    phone: phone || '',
     createdAt: new Date(),
     updatedAt: new Date(),
   }, { merge: true });
