@@ -31,8 +31,8 @@ export async function searchUsers(keyword: string): Promise<UserProfile[]> {
             // 이름으로 검색
             q = query(
                 usersRef,
-                where('name', '>=', keyword),
-                where('name', '<=', keyword + '\uf8ff'),
+                where('displayName', '>=', keyword),
+                where('displayName', '<=', keyword + '\uf8ff'),
                 limit(5)
             );
         }
@@ -44,7 +44,7 @@ export async function searchUsers(keyword: string): Promise<UserProfile[]> {
             const data = doc.data();
             users.push({
                 id: doc.id,
-                name: data.name || '이름 없음',
+                name: data.displayName || data.name || '이름 없음',
                 phone: data.phone || '',
                 email: data.email || '',
                 createdAt: data.createdAt,

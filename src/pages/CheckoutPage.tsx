@@ -431,14 +431,14 @@ export default function CheckoutPage() {
                 <h2 className="text-xl font-bold text-gray-900 mb-4">주문 상품</h2>
                 <div className="space-y-3">
                   {items.map((item) => {
-                    const optionsPrice = item.options?.reduce((sum, opt) => sum + opt.price, 0) || 0;
+                    const optionsPrice = item.options?.reduce((sum, opt) => sum + (opt.price * (opt.quantity || 1)), 0) || 0;
                     return (
                       <div key={item.id} className="flex justify-between items-start py-2 border-b border-gray-100 last:border-0">
                         <div className="flex-1">
                           <p className="font-medium text-gray-900">{item.name}</p>
                           {item.options && item.options.length > 0 && (
                             <p className="text-sm text-gray-600">
-                              {item.options.map(opt => opt.name).join(', ')}
+                              {item.options.map(opt => `${opt.name}${(opt.quantity || 1) > 1 ? ` x${opt.quantity}` : ''}`).join(', ')}
                             </p>
                           )}
                           <p className="text-sm text-gray-600">수량: {item.quantity}개</p>

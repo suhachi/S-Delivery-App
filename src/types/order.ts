@@ -3,7 +3,7 @@ export interface OrderItem {
   name: string;
   price: number;
   quantity: number;
-  options?: { name: string; price: number }[];
+  options?: { name: string; price: number; quantity?: number }[];
   imageUrl?: string;
 }
 

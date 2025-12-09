@@ -170,7 +170,7 @@ function OrderCard({ order, onClick }: { order: Order; onClick: () => void }) {
                   </div>
                 </div>
                 <p className="text-sm font-semibold text-gray-900">
-                  {((item.price + (item.options?.reduce((sum: number, opt) => sum + opt.price, 0) || 0)) * item.quantity).toLocaleString()}원
+                  {((item.price + (item.options?.reduce((sum: number, opt) => sum + (opt.price * (opt.quantity || 1)), 0) || 0)) * item.quantity).toLocaleString()}원
                 </p>
               </div>
             ))}

@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom';
+﻿import { useNavigate } from 'react-router-dom';
 import { ShoppingCart, Trash2, Plus, Minus, ArrowRight, AlertCircle } from 'lucide-react';
 import { useCart, CartItem as CartItemType } from '../contexts/CartContext';
 import Card from '../components/common/Card';
@@ -11,7 +11,7 @@ export default function CartPage() {
 
   const handleCheckout = () => {
     if (items.length === 0) {
-      toast.error('장바구니가 비어있습니다');
+      toast.error('장바구니가 비어 있습니다');
       return;
     }
     navigate('/checkout');
@@ -32,7 +32,7 @@ export default function CartPage() {
             <ShoppingCart className="w-12 h-12 sm:w-16 sm:h-16 text-white" />
           </div>
           <h2 className="text-xl sm:text-2xl mb-3">
-            장바구니가 ���어있습니다
+            장바구니가 비어 있습니다
           </h2>
           <p className="text-sm sm:text-base text-gray-600 mb-8">
             맛있는 메뉴를 장바구니에 담아보세요
@@ -90,7 +90,7 @@ export default function CartPage() {
             {/* 데스크톱: sticky 카드 */}
             <Card className="hidden lg:block sticky top-24">
               <h2 className="text-xl font-bold text-gray-900 mb-4">주문 요약</h2>
-              
+
               <div className="space-y-3 mb-6 pb-6 border-b border-gray-200">
                 <div className="flex items-center justify-between text-gray-600">
                   <span>상품 금액</span>
@@ -162,7 +162,7 @@ interface CartItemProps {
 }
 
 function CartItem({ item, onRemove, onUpdateQuantity }: CartItemProps) {
-  const optionsPrice = item.options?.reduce((sum, opt) => sum + opt.price, 0) || 0;
+  const optionsPrice = item.options?.reduce((sum, opt) => sum + (opt.price * (opt.quantity || 1)), 0) || 0;
   const itemTotal = (item.price + optionsPrice) * item.quantity;
 
   return (
@@ -192,7 +192,7 @@ function CartItem({ item, onRemove, onUpdateQuantity }: CartItemProps) {
                 <div className="space-y-0.5">
                   {item.options.map((opt, idx) => (
                     <p key={idx} className="text-xs sm:text-sm text-gray-600">
-                      + {opt.name} (+{opt.price.toLocaleString()}원)
+                      + {opt.name} {(opt.quantity || 1) > 1 ? `x${opt.quantity}` : ''} (+{(opt.price * (opt.quantity || 1)).toLocaleString()}원)
                     </p>
                   ))}
                 </div>

@@ -1,6 +1,6 @@
 ﻿# 05-Service-Layer
 
-Generated: 2025-12-09 14:46:44
+Generated: 2025-12-09 15:56:57
 
 ---
 
@@ -144,8 +144,8 @@ export async function createEvent(
       imageUrl: eventData.imageUrl,
       link: eventData.link,
       active: eventData.active,
-      startDate: Timestamp.fromDate(new Date(eventData.startDate)),
-      endDate: Timestamp.fromDate(new Date(eventData.endDate)),
+      startDate: eventData.startDate instanceof Timestamp ? eventData.startDate : Timestamp.fromDate(new Date(eventData.startDate)),
+      endDate: eventData.endDate instanceof Timestamp ? eventData.endDate : Timestamp.fromDate(new Date(eventData.endDate)),
       createdAt: serverTimestamp(),
     });
     return docRef.id;
@@ -172,10 +172,12 @@ export async function updateEvent(
     if (eventData.link !== undefined) updateData.link = eventData.link;
     if (eventData.active !== undefined) updateData.active = eventData.active;
     if (eventData.startDate !== undefined) {
-      updateData.startDate = Timestamp.fromDate(new Date(eventData.startDate));
+      const start = eventData.startDate as any;
+      updateData.startDate = start instanceof Timestamp ? start : Timestamp.fromDate(new Date(start));
     }
     if (eventData.endDate !== undefined) {
-      updateData.endDate = Timestamp.fromDate(new Date(eventData.endDate));
+      const end = eventData.endDate as any;
+      updateData.endDate = end instanceof Timestamp ? end : Timestamp.fromDate(new Date(end));
     }
 
     await updateDoc(eventRef, updateData);

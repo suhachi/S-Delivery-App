@@ -232,16 +232,8 @@ export default function AdminStoreSettings() {
                 <ImageUpload
                   label="상점 로고 (선택)"
                   currentImageUrl={formData.logoUrl}
-                  onImageUploaded={async (url) => {
+                  onImageUploaded={(url) => {
                     setFormData(prev => ({ ...prev, logoUrl: url }));
-                    // Auto-save logic
-                    try {
-                      await updateDoc(doc(db, 'stores', 'default'), { logoUrl: url });
-                      toast.success('상점 로고가 저장되었습니다');
-                    } catch (error) {
-                      console.error('Failed to auto-save logo:', error);
-                      toast.error('로고 저장 실패');
-                    }
                   }}
                   onUpload={(file) => uploadStoreImage(file, 'logo')}
                   aspectRatio="square"
@@ -251,16 +243,8 @@ export default function AdminStoreSettings() {
                 <ImageUpload
                   label="배너 이미지 (선택)"
                   currentImageUrl={formData.bannerUrl}
-                  onImageUploaded={async (url) => {
+                  onImageUploaded={(url) => {
                     setFormData(prev => ({ ...prev, bannerUrl: url }));
-                    // Auto-save logic
-                    try {
-                      await updateDoc(doc(db, 'stores', 'default'), { bannerUrl: url });
-                      toast.success('배너 이미지가 저장되었습니다');
-                    } catch (error) {
-                      console.error('Failed to auto-save banner:', error);
-                      toast.error('배너 저장 실패');
-                    }
                   }}
                   onUpload={(file) => uploadStoreImage(file, 'banner')}
                   aspectRatio="wide"

@@ -22,13 +22,26 @@ export default function MenuDetailModal({ menu, onClose }: MenuDetailModalProps)
       if (exists) {
         return prev.filter(opt => opt.id !== option.id);
       } else {
-        return [...prev, option];
+        return [...prev, { ...option, quantity: 1 }];
       }
     });
   };
 
+  const updateOptionQuantity = (optionId: string, delta: number) => {
+    setSelectedOptions(prev => {
+      return prev.map(opt => {
+        if (opt.id === optionId) {
+          const newQuantity = (opt.quantity || 1) + delta;
+          if (newQuantity < 1) return opt; // Minimum 1
+          return { ...opt, quantity: newQuantity };
+        }
+        return opt;
+      });
+    });
+  };
+
   const getTotalPrice = () => {
-    const optionsPrice = selectedOptions.reduce((sum, opt) => sum + opt.price, 0);
+    const optionsPrice = selectedOptions.reduce((sum, opt) => sum + (opt.price * (opt.quantity || 1)), 0);
     return (menu.price + optionsPrice) * quantity;
   };
 
@@ -79,7 +92,7 @@ export default function MenuDetailModal({ menu, onClose }: MenuDetailModalProps)
                 <span className="text-8xl">🍜</span>
               </div>
             )}
-            
+
             {menu.soldout && (
               <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
                 <Badge variant="danger" size="lg">
@@ -117,30 +130,60 @@ export default function MenuDetailModal({ menu, onClose }: MenuDetailModalProps)
               <div className="mb-6 pb-6 border-b border-gray-200">
                 <h3 className="font-semibold text-gray-900 mb-3">옵션 선택</h3>
                 <div className="space-y-2">
-                  {menu.options.map((option) => (
-                    <button
-                      key={option.id}
-                      onClick={() => toggleOption(option)}
-                      className={`
-                        w-full flex items-center justify-between p-4 rounded-lg border-2 transition-all
-                        ${
-                          selectedOptions.find(opt => opt.id === option.id)
-                            ? 'border-blue-500 bg-blue-50'
+                  {menu.options.map((option) => {
+                    const selected = selectedOptions.find(opt => opt.id === option.id);
+                    return (
+                      <div
+                        key={option.id}
+                        className={`
+                          w-full rounded-lg border-2 transition-all overflow-hidden
+                          ${selected
+                            ? 'border-blue-500 bg-white'
                             : 'border-gray-200 hover:border-gray-300'
-                        }
-                      `}
-                    >
-                      <div className="flex flex-col items-start">
-                        <span className="font-medium text-gray-900">{option.name}</span>
-                        {option.quantity !== undefined && (
-                          <span className="text-sm text-gray-500">수량: {option.quantity}개</span>
+                          }
+                        `}
+                      >
+                        <button
+                          onClick={() => toggleOption(option)}
+                          className="w-full flex items-center justify-between p-4 text-left"
+                        >
+                          <span className="font-medium text-gray-900">{option.name}</span>
+                          <span className={`${selected ? 'text-blue-600' : 'text-gray-900'} font-semibold`}>
+                            +{option.price.toLocaleString()}원
+                          </span>
+                        </button>
+
+                        {selected && (
+                          <div className="flex items-center justify-between bg-blue-50 p-3 border-t border-blue-100 animate-slide-down">
+                            <span className="text-sm text-blue-800 font-medium ml-1">수량</span>
+                            <div className="flex items-center bg-white rounded-lg border border-blue-200 shadow-sm">
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  updateOptionQuantity(option.id, -1);
+                                }}
+                                className="w-8 h-8 flex items-center justify-center text-gray-500 hover:text-blue-600 hover:bg-gray-50 rounded-l-lg transition-colors"
+                              >
+                                <Minus className="w-4 h-4" />
+                              </button>
+                              <span className="w-8 text-center text-sm font-bold text-gray-900">
+                                {selected.quantity || 1}
+                              </span>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  updateOptionQuantity(option.id, 1);
+                                }}
+                                className="w-8 h-8 flex items-center justify-center text-gray-500 hover:text-blue-600 hover:bg-gray-50 rounded-r-lg transition-colors"
+                              >
+                                <Plus className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </div>
                         )}
                       </div>
-                      <span className="text-blue-600 font-semibold">
-                        +{option.price.toLocaleString()}원
-                      </span>
-                    </button>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             )}

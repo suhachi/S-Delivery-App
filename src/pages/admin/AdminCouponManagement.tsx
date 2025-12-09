@@ -33,9 +33,10 @@ export default function AdminCouponManagement() {
   };
 
   const handleDeleteCoupon = async (couponId: string) => {
+    if (!store?.id) return;
     if (window.confirm('정말 삭제하시겠습니까?')) {
       try {
-        await deleteCoupon(couponId);
+        await deleteCoupon(store.id, couponId);
         toast.success('쿠폰이 삭제되었습니다');
       } catch (error) {
         toast.error('쿠폰 삭제에 실패했습니다');
@@ -44,8 +45,9 @@ export default function AdminCouponManagement() {
   };
 
   const handleToggleActive = async (couponId: string, currentActive: boolean) => {
+    if (!store?.id) return;
     try {
-      await toggleCouponActive(couponId, !currentActive);
+      await toggleCouponActive(store.id, couponId, !currentActive);
       toast.success('쿠폰 상태가 변경되었습니다');
     } catch (error) {
       toast.error('쿠폰 상태 변경에 실패했습니다');
@@ -53,12 +55,13 @@ export default function AdminCouponManagement() {
   };
 
   const handleSaveCoupon = async (couponData: Omit<Coupon, 'id' | 'createdAt' | 'usedCount'>) => {
+    if (!store?.id) return;
     try {
       if (editingCoupon) {
-        await updateCoupon(editingCoupon.id, couponData);
+        await updateCoupon(store.id, editingCoupon.id, couponData);
         toast.success('쿠폰이 수정되었습니다');
       } else {
-        await createCoupon(couponData);
+        await createCoupon(store.id, couponData);
         toast.success('쿠폰이 추가되었습니다');
       }
       setIsModalOpen(false);

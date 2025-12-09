@@ -171,7 +171,7 @@ function OrderCard({ order, isExpanded, onToggleExpand, onStatusChange }: OrderC
             <h4 className="font-semibold text-gray-900 mb-3">주문 상품</h4>
             <div className="space-y-2">
               {order.items.map((item, idx) => {
-                const optionsPrice = item.options?.reduce((sum, opt) => sum + opt.price, 0) || 0;
+                const optionsPrice = item.options?.reduce((sum, opt) => sum + (opt.price * (opt.quantity || 1)), 0) || 0;
                 return (
                   <div key={idx} className="flex items-start justify-between p-3 bg-gray-50 rounded-lg">
                     <div className="flex items-start space-x-3 flex-1">
@@ -184,7 +184,7 @@ function OrderCard({ order, isExpanded, onToggleExpand, onStatusChange }: OrderC
                         <p className="font-medium text-gray-900">{item.name}</p>
                         {item.options && item.options.length > 0 && (
                           <p className="text-xs text-gray-600">
-                            {item.options.map(opt => `${opt.name} (+${opt.price.toLocaleString()}원)`).join(', ')}
+                            {item.options.map(opt => `${opt.name}${(opt.quantity || 1) > 1 ? ` x${opt.quantity}` : ''} (+${(opt.price * (opt.quantity || 1)).toLocaleString()}원)`).join(', ')}
                           </p>
                         )}
                         <p className="text-sm text-gray-600 mt-1">수량: {item.quantity}개</p>
