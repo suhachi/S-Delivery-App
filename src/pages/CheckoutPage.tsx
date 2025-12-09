@@ -152,6 +152,13 @@ export default function CheckoutPage() {
 
       // 2. 결제 수단이 '앱결제'인 경우 NICEPAY 호출
       if (formData.paymentType === '앱결제') {
+        const clientId = import.meta.env.VITE_NICEPAY_CLIENT_ID;
+        if (!clientId) {
+          toast.error('결제 시스템이 아직 설정되지 않았습니다. 관리자에게 문의하세요.');
+          setIsSubmitting(false);
+          return;
+        }
+
         const { requestNicepayPayment } = await import('../lib/nicepayClient');
 
         await requestNicepayPayment({

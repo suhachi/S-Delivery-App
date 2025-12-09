@@ -1,6 +1,6 @@
 ﻿# 01-Config-And-Entry
 
-Generated: 2025-12-09 13:30:59
+Generated: 2025-12-09 14:11:21
 
 ---
 
@@ -275,31 +275,7 @@ export default function App() {
       "queryScope": "COLLECTION",
       "fields": [
         {
-          "fieldPath": "orderId",
-          "order": "ASCENDING"
-        }
-      ]
-    },
-    {
-      "collectionGroup": "reviews",
-      "queryScope": "COLLECTION",
-      "fields": [
-        {
           "fieldPath": "status",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "createdAt",
-          "order": "DESCENDING"
-        }
-      ]
-    },
-    {
-      "collectionGroup": "notices",
-      "queryScope": "COLLECTION",
-      "fields": [
-        {
-          "fieldPath": "category",
           "order": "ASCENDING"
         },
         {
@@ -328,7 +304,7 @@ export default function App() {
       "fields": [
         {
           "fieldPath": "category",
-          "arrayContains": true
+          "arrayConfig": "CONTAINS"
         },
         {
           "fieldPath": "createdAt",

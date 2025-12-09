@@ -65,31 +65,7 @@
       "queryScope": "COLLECTION",
       "fields": [
         {
-          "fieldPath": "orderId",
-          "order": "ASCENDING"
-        }
-      ]
-    },
-    {
-      "collectionGroup": "reviews",
-      "queryScope": "COLLECTION",
-      "fields": [
-        {
           "fieldPath": "status",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "createdAt",
-          "order": "DESCENDING"
-        }
-      ]
-    },
-    {
-      "collectionGroup": "notices",
-      "queryScope": "COLLECTION",
-      "fields": [
-        {
-          "fieldPath": "category",
           "order": "ASCENDING"
         },
         {
@@ -118,7 +94,7 @@
       "fields": [
         {
           "fieldPath": "category",
-          "arrayContains": true
+          "arrayConfig": "CONTAINS"
         },
         {
           "fieldPath": "createdAt",
