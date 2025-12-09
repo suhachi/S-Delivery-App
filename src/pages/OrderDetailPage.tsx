@@ -132,22 +132,22 @@ export default function OrderDetailPage() {
               <div className="mb-6">
                 <div className="flex items-center justify-between">
                   {statusSteps.map((step, idx) => (
-                    <div key={step} className="flex-1 flex flex-col items-center">
+                    <div key={step} className="flex-1 flex flex-col items-center relative">
                       <div className={`
-                        w-10 h-10 rounded-full flex items-center justify-center mb-2 transition-all relative z-10
-                        ${idx <= currentStepIndex ? 'gradient-primary text-white' : 'bg-gray-200 text-gray-400'}
+                        w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center mb-2 transition-all relative z-10 shadow-sm
+                        ${idx <= currentStepIndex ? 'gradient-primary text-white ring-2 ring-white' : 'bg-gray-100 text-gray-300'}
                       `}>
                         {idx <= currentStepIndex ? (
-                          <CheckCircle2 className="w-6 h-6" />
+                          <CheckCircle2 className="w-4 h-4 sm:w-6 sm:h-6" />
                         ) : (
-                          <Clock className="w-6 h-6" />
+                          <Clock className="w-4 h-4 sm:w-6 sm:h-6" />
                         )}
                       </div>
-                      <p className={`text-xs text-center ${idx <= currentStepIndex ? 'text-blue-600 font-semibold' : 'text-gray-500'}`}>
+                      <p className={`text-[10px] sm:text-xs text-center font-medium whitespace-nowrap ${idx <= currentStepIndex ? 'text-gray-900' : 'text-gray-400'}`}>
                         {getDisplayStatus(step)}
                       </p>
                       {idx < statusSteps.length - 1 && (
-                        <div className={`absolute h-1 w-full top-5 left-1/2 -z-0 ${idx < currentStepIndex ? 'bg-blue-500' : 'bg-gray-200'}`} />
+                        <div className={`absolute h-[2px] w-full top-4 sm:top-5 left-1/2 -z-0 ${idx < currentStepIndex ? 'bg-primary-500' : 'bg-gray-100'}`} />
                       )}
                     </div>
                   ))}

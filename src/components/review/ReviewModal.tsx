@@ -1,11 +1,12 @@
-import { useState, useEffect } from 'react';
-import { X, Star, Trash2 } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { X, Star, Trash2, Camera } from 'lucide-react';
 import Button from '../common/Button';
 import Card from '../common/Card';
 import { toast } from 'sonner';
 import { useAuth } from '../../contexts/AuthContext';
 import { useStore } from '../../contexts/StoreContext';
 import { createReview, updateReview, deleteReview, getReviewByOrder } from '../../services/reviewService';
+import { uploadReviewImage, validateImageFile } from '../../services/storageService';
 import { Review } from '../../types/review';
 
 interface ReviewModalProps {
@@ -24,6 +25,9 @@ export default function ReviewModal({ orderId, onClose, onSuccess }: ReviewModal
   const [existingReview, setExistingReview] = useState<Review | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // 기존 리뷰 확인
   useEffect(() => {
@@ -36,6 +40,9 @@ export default function ReviewModal({ orderId, onClose, onSuccess }: ReviewModal
           setExistingReview(review);
           setRating(review.rating);
           setComment(review.comment);
+          if (review.images && review.images.length > 0) {
+            setImagePreview(review.images[0]);
+          }
         }
       } catch (error) {
         console.error('기존 리뷰 조회 실패:', error);
@@ -44,6 +51,23 @@ export default function ReviewModal({ orderId, onClose, onSuccess }: ReviewModal
 
     loadExistingReview();
   }, [storeId, orderId, user]);
+
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const validation = validateImageFile(file);
+      if (!validation.valid) {
+        toast.error(validation.error);
+        return;
+      }
+      setImageFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -66,12 +90,29 @@ export default function ReviewModal({ orderId, onClose, onSuccess }: ReviewModal
     setIsLoading(true);
 
     try {
+      // 이미지 업로드
+      let imageUrls = existingReview?.images || [];
+
+      // 새 이미지가 있으면 업로드
+      if (imageFile) {
+        const url = await uploadReviewImage(imageFile);
+        imageUrls = [url]; // 현재는 1장만 지원 (덮어쓰기)
+      }
+
+      // 이미지를 삭제했다면 (preview가 null이고 file도 null이면)
+      if (!imagePreview && !imageFile) {
+        imageUrls = [];
+      }
+
+      const reviewData = {
+        rating,
+        comment: comment.trim(),
+        images: imageUrls,
+      };
+
       if (existingReview) {
         // 수정
-        await updateReview(storeId, existingReview.id, {
-          rating,
-          comment: comment.trim(),
-        });
+        await updateReview(storeId, existingReview.id, reviewData);
         toast.success('리뷰가 수정되었습니다');
       } else {
         // 생성
@@ -79,8 +120,7 @@ export default function ReviewModal({ orderId, onClose, onSuccess }: ReviewModal
           orderId,
           userId: user.id,
           userDisplayName: user.displayName || user.email || '사용자',
-          rating,
-          comment: comment.trim(),
+          ...reviewData,
         });
         toast.success('리뷰가 등록되었습니다');
       }
@@ -88,6 +128,7 @@ export default function ReviewModal({ orderId, onClose, onSuccess }: ReviewModal
       onSuccess?.();
       onClose();
     } catch (error) {
+      console.error('Review submit error:', error);
       toast.error('리뷰 처리 중 오류가 발생했습니다');
     } finally {
       setIsLoading(false);
@@ -182,6 +223,53 @@ export default function ReviewModal({ orderId, onClose, onSuccess }: ReviewModal
               <p className="text-sm text-gray-500 mt-1 text-right">
                 {comment.length}/500
               </p>
+            </div>
+
+            {/* Image Upload */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                사진 첨부
+              </label>
+              <div className="flex gap-3 overflow-x-auto py-2">
+                {/* Upload Button */}
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="w-20 h-20 flex flex-col items-center justify-center border border-dashed border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-gray-500 hover:text-blue-500"
+                >
+                  <Camera className="w-6 h-6 mb-1" />
+                  <span className="text-xs">사진 추가</span>
+                </button>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleImageChange}
+                />
+
+                {/* Preview */}
+                {imagePreview && (
+                  <div className="relative w-20 h-20 rounded-lg overflow-hidden border border-gray-200">
+                    <img
+                      src={imagePreview}
+                      alt="Preview"
+                      className="w-full h-full object-cover"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setImageFile(null);
+                        setImagePreview(null);
+                        if (fileInputRef.current) fileInputRef.current.value = '';
+                      }}
+                      className="absolute top-1 right-1 bg-black/50 text-white rounded-full p-0.5 hover:bg-red-500 transition-colors"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Buttons */}

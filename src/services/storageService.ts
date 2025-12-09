@@ -175,3 +175,9 @@ export async function uploadStoreImage(file: File, type: 'logo' | 'banner'): Pro
   const path = `store/${type}_${timestamp}_${file.name}`;
   return uploadImage(file, path);
 }
+
+// 리뷰 이미지 업로드
+export async function uploadReviewImage(file: File): Promise<string> {
+  const path = `reviews/${Date.now()}_${file.name}`;
+  return uploadImage(file, path);
+}

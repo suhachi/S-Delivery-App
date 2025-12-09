@@ -15,15 +15,15 @@ interface MenuCardProps {
 export default function MenuCard({ menu }: MenuCardProps) {
   const { addItem } = useCart();
   const [showDetail, setShowDetail] = useState(false);
-  
+
   const handleQuickAdd = (e: React.MouseEvent) => {
     e.stopPropagation();
-    
+
     if (menu.soldout) {
       toast.error('품절된 메뉴입니다');
       return;
     }
-    
+
     if (menu.options && menu.options.length > 0) {
       // 옵션이 있으면 상세 모달 열기
       setShowDetail(true);
@@ -49,19 +49,19 @@ export default function MenuCard({ menu }: MenuCardProps) {
         className={`overflow-hidden ${menu.soldout ? 'opacity-60' : ''}`}
       >
         {/* Image */}
-        <div className="relative aspect-[4/3] overflow-hidden bg-gray-100">
+        <div className="relative aspect-[4/3] overflow-hidden bg-gray-100 group">
           {menu.imageUrl ? (
             <img
               src={menu.imageUrl}
               alt={menu.name}
-              className="w-full h-full object-cover transform hover:scale-110 transition-transform duration-300"
+              className="w-full h-full object-cover transform transition-all duration-500 group-hover:scale-110 group-hover:brightness-105"
             />
           ) : (
             <div className="w-full h-full flex items-center justify-center text-gray-400">
               <span className="text-5xl">🍜</span>
             </div>
           )}
-          
+
           {/* Badges */}
           <div className="absolute top-3 left-3 flex flex-wrap gap-1.5">
             {menu.category.slice(0, 2).map((cat) => (
@@ -70,7 +70,7 @@ export default function MenuCard({ menu }: MenuCardProps) {
               </Badge>
             ))}
           </div>
-          
+
           {menu.soldout && (
             <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
               <Badge variant="danger" size="lg">
@@ -85,11 +85,11 @@ export default function MenuCard({ menu }: MenuCardProps) {
           <h3 className="text-lg font-semibold text-gray-900 mb-1 line-clamp-1">
             {menu.name}
           </h3>
-          
+
           <p className="text-sm text-gray-600 mb-3 line-clamp-2">
             {menu.description}
           </p>
-          
+
           <div className="flex items-center justify-between">
             <div>
               <span className="text-2xl font-bold text-blue-600">
@@ -97,7 +97,7 @@ export default function MenuCard({ menu }: MenuCardProps) {
               </span>
               <span className="text-sm text-gray-600 ml-1">원</span>
             </div>
-            
+
             <Button
               size="sm"
               onClick={handleQuickAdd}
@@ -108,7 +108,7 @@ export default function MenuCard({ menu }: MenuCardProps) {
               담기
             </Button>
           </div>
-          
+
           {menu.options && menu.options.length > 0 && (
             <p className="mt-2 text-xs text-gray-500">
               {menu.options.length}개의 옵션 선택 가능

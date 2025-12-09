@@ -123,12 +123,12 @@ function ReviewCard({ review }: { review: Review }) {
                   <Star
                     key={star}
                     className={`w-4 h-4 ${star <= review.rating
-                      ? `fill-current ${ratingColor}`
+                      ? 'fill-yellow-400 text-yellow-400'
                       : 'text-gray-300'
                       }`}
                   />
                 ))}
-                <span className={`ml-2 font-semibold ${ratingColor}`}>
+                <span className="ml-2 font-semibold text-gray-900">
                   {review.rating}.0
                 </span>
               </div>
@@ -142,6 +142,20 @@ function ReviewCard({ review }: { review: Review }) {
           <p className="text-gray-700 leading-relaxed break-words">
             {review.comment}
           </p>
+
+          {/* Review Image */}
+          {review.images && review.images.length > 0 && (
+            <div className="mt-3">
+              <div className="relative w-32 h-32 rounded-lg overflow-hidden bg-gray-100 border border-gray-200">
+                <img
+                  src={review.images[0]}
+                  alt="Review Type"
+                  className="w-full h-full object-cover cursor-pointer hover:scale-105 transition-transform"
+                  onClick={() => window.open(review.images![0], '_blank')}
+                />
+              </div>
+            </div>
+          )}
 
           {/* Updated indicator */}
           {review.updatedAt && review.updatedAt !== review.createdAt && (

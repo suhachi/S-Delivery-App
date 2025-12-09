@@ -43,29 +43,45 @@ export default function ReviewPreview() {
             <div className="flex gap-4 overflow-x-auto hide-scrollbar pb-4 snap-x snap-mandatory">
                 {recentReviews.map((review) => (
                     <div key={review.id} className="min-w-[280px] w-[280px] snap-start">
-                        <Card className="h-full flex flex-col p-4 bg-white border border-gray-100 shadow-sm hover:shadow-md transition-shadow">
-                            <div className="flex items-center justify-between mb-3">
-                                <div className="flex items-center gap-2">
-                                    <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
-                                        <User className="w-4 h-4 text-blue-600" />
-                                    </div>
-                                    <div className="flex flex-col">
-                                        <span className="text-sm font-semibold text-gray-900 truncate max-w-[100px]">
-                                            {review.userDisplayName}
-                                        </span>
-                                        <div className="flex items-center">
-                                            <Star className="w-3 h-3 text-yellow-500 fill-current" />
-                                            <span className="text-xs font-bold ml-1">{review.rating}</span>
+                        <Card
+                            className="h-full flex flex-col p-4 bg-white border border-gray-100 shadow-sm hover:shadow-md transition-shadow cursor-pointer group overflow-hidden"
+                            padding="none"
+                        >
+                            {/* Image if available */}
+                            {review.images && review.images.length > 0 && (
+                                <div className="relative w-full h-32 overflow-hidden bg-gray-100">
+                                    <img
+                                        src={review.images[0]}
+                                        alt="Review"
+                                        className="w-full h-full object-cover transform transition-all duration-500 group-hover:scale-110 group-hover:brightness-105"
+                                    />
+                                </div>
+                            )}
+
+                            <div className="p-4 flex-1 flex flex-col">
+                                <div className="flex items-center justify-between mb-3">
+                                    <div className="flex items-center gap-2">
+                                        <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
+                                            <User className="w-4 h-4 text-blue-600" />
+                                        </div>
+                                        <div className="flex flex-col">
+                                            <span className="text-sm font-semibold text-gray-900 truncate max-w-[100px]">
+                                                {review.userDisplayName}
+                                            </span>
+                                            <div className="flex items-center">
+                                                <Star className="w-3 h-3 fill-yellow-400 text-yellow-400" />
+                                                <span className="text-xs font-bold ml-1">{review.rating}</span>
+                                            </div>
                                         </div>
                                     </div>
+                                    <span className="text-xs text-gray-400">{formatDate(review.createdAt)}</span>
                                 </div>
-                                <span className="text-xs text-gray-400">{formatDate(review.createdAt)}</span>
-                            </div>
 
-                            <div className="flex-1">
-                                <p className="text-sm text-gray-600 line-clamp-3">
-                                    {review.comment}
-                                </p>
+                                <div className="flex-1">
+                                    <p className="text-sm text-gray-600 line-clamp-3 break-words">
+                                        {review.comment}
+                                    </p>
+                                </div>
                             </div>
                         </Card>
                     </div>
