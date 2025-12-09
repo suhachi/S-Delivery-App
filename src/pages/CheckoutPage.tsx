@@ -1,7 +1,7 @@
 /// <reference types="vite/client" />
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { MapPin, Phone, CreditCard, Wallet, DollarSign, ArrowLeft, CheckCircle2, ShoppingBag, Package, Ticket, X } from 'lucide-react';
+import { MapPin, Phone, CreditCard, Wallet, DollarSign, ArrowLeft, CheckCircle2, ShoppingBag, Package, Ticket, X, Search } from 'lucide-react';
 import { useCart } from '../contexts/CartContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useStore } from '../contexts/StoreContext';
@@ -9,6 +9,7 @@ import { toast } from 'sonner';
 import Card from '../components/common/Card';
 import Button from '../components/common/Button';
 import Input from '../components/common/Input';
+import AddressSearchModal from '../components/common/AddressSearchModal';
 import { Coupon } from '../types/coupon';
 import { createOrder } from '../services/orderService';
 import { OrderStatus } from '../types/order';
@@ -33,8 +34,10 @@ export default function CheckoutPage() {
 
   const [orderType, setOrderType] = useState<OrderType>('배달주문');
   const [selectedCoupon, setSelectedCoupon] = useState<Coupon | null>(null);
+  const [isAddressSearchOpen, setIsAddressSearchOpen] = useState(false);
   const [formData, setFormData] = useState({
     address: '',
+    detailAddress: '',
     phone: '',
     memo: '',
     paymentType: '앱결제' as '앱결제' | '만나서카드' | '만나서현금' | '방문시결제',
@@ -46,15 +49,32 @@ export default function CheckoutPage() {
   const deliveryFee = orderType === '배달주문' ? 3000 : 0;
 
   // 사용 가능한 쿠폰 필터링
+  // Firestore Timestamp 처리를 위한 헬퍼 함수
+  const toDate = (date: any): Date => {
+    if (date?.toDate) return date.toDate(); // Firestore Timestamp
+    if (date instanceof Date) return date;
+    if (typeof date === 'string') return new Date(date);
+    return new Date(); // Fallback
+  };
+
+  // 사용 가능한 쿠폰 필터링
   const availableCoupons = (coupons || []).filter(coupon => {
     const now = new Date();
     const itemsTotal = getTotalPrice();
-    return (
-      coupon.isActive &&
-      coupon.validFrom <= now &&
-      coupon.validUntil >= now &&
-      itemsTotal >= coupon.minOrderAmount
-    );
+    const validFrom = toDate(coupon.validFrom);
+    const validUntil = toDate(coupon.validUntil);
+    const minOrderAmount = Number(coupon.minOrderAmount) || 0;
+
+    // 만료일의 경우 해당 날짜의 23:59:59까지 유효하도록 설정 (선택사항, 필요시)
+    // 여기서는 단순 시간 비교
+
+    const isValidPeriod = validFrom <= now && validUntil >= now;
+    const isValidAmount = itemsTotal >= minOrderAmount;
+
+    // 디버깅을 위해 로그 추가 (필요시 제거)
+    // console.log(`Coupon ${coupon.name}: Active=${coupon.isActive}, Period=${isValidPeriod}, Amount=${isValidAmount}`);
+
+    return coupon.isActive && isValidPeriod && isValidAmount;
   });
 
   // 쿠폰 할인 금액 계산
@@ -131,7 +151,7 @@ export default function CheckoutPage() {
         deliveryFee,
         discountAmount,
         totalPrice: finalTotal,
-        address: formData.address,
+        address: `${formData.address} ${formData.detailAddress}`.trim(),
         phone: formData.phone,
         memo: formData.memo,
         paymentType: formData.paymentType,
@@ -278,13 +298,42 @@ export default function CheckoutPage() {
                 </h2>
                 <div className="space-y-4">
                   {orderType === '배달주문' && (
-                    <Input
-                      label="배달 주소"
-                      placeholder="예: 서울시 강남구 테헤란로 123"
-                      value={formData.address}
-                      onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                      required
-                    />
+                    <div className="space-y-2">
+                      <div className="flex gap-2">
+                        <div className="flex-1">
+                          <Input
+                            label="배달 주소"
+                            placeholder="주소 검색을 클릭해주세요"
+                            value={formData.address}
+                            readOnly
+                            onClick={() => setIsAddressSearchOpen(true)}
+                            className="cursor-pointer bg-gray-50"
+                            required
+                          />
+                        </div>
+                        <div className="mt-8">
+                          <Button
+                            type="button"
+                            onClick={() => setIsAddressSearchOpen(true)}
+                            variant="outline"
+                            className="whitespace-nowrap h-[42px]"
+                          >
+                            <Search className="w-4 h-4 mr-1" />
+                            주소 검색
+                          </Button>
+                        </div>
+                      </div>
+                      {formData.address && (
+                        <div className="animate-fade-in">
+                          <Input
+                            placeholder="상세 주소를 입력해주세요 (예: 101동 101호)"
+                            value={formData.detailAddress}
+                            onChange={(e) => setFormData({ ...formData, detailAddress: e.target.value })}
+                            required
+                          />
+                        </div>
+                      )}
+                    </div>
                   )}
                   <Input
                     label="연락처"
@@ -399,7 +448,7 @@ export default function CheckoutPage() {
                                 </p>
                                 <p className="text-xs text-gray-500">
                                   최소 주문 {coupon.minOrderAmount.toLocaleString()}원 · {' '}
-                                  {new Date(coupon.validUntil).toLocaleDateString('ko-KR')}까지
+                                  {toDate(coupon.validUntil).toLocaleDateString('ko-KR')}까지
                                 </p>
                               </div>
                             </div>
@@ -509,6 +558,16 @@ export default function CheckoutPage() {
           </div>
         </form>
       </div>
+      {isAddressSearchOpen && (
+        <AddressSearchModal
+          onClose={() => setIsAddressSearchOpen(false)}
+          onComplete={(address) => {
+            setFormData(prev => ({ ...prev, address }));
+            // 상세 주소 입력창으로 포커스를 이동하면 좋겠지만, 
+            // 여기서는 상태 업데이트만 처리
+          }}
+        />
+      )}
     </div>
   );
 }
