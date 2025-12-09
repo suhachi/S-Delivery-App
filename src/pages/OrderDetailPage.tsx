@@ -57,6 +57,15 @@ export default function OrderDetailPage() {
     return new Date();
   };
 
+  // 헬퍼 함수: 사용자용 상태 라벨 변환
+  const getDisplayStatus = (status: OrderStatus) => {
+    switch (status) {
+      case '접수': return '접수중';
+      case '접수완료': return '접수확인';
+      default: return ORDER_STATUS_LABELS[status];
+    }
+  };
+
   const statusColor = ORDER_STATUS_COLORS[order.status as OrderStatus] || ORDER_STATUS_COLORS['접수'];
 
   const handleReorder = () => {
@@ -65,7 +74,7 @@ export default function OrderDetailPage() {
     // navigate('/cart');
   };
 
-  const statusSteps: OrderStatus[] = ['접수', '조리중', '배달중', '완료'];
+  const statusSteps: OrderStatus[] = ['접수', '접수완료', '조리중', '배달중', '완료'];
   const currentStepIndex = statusSteps.indexOf(order.status as OrderStatus);
 
   return (
@@ -98,7 +107,7 @@ export default function OrderDetailPage() {
                 </div>
                 <div>
                   <h2 className="text-2xl font-bold text-gray-900">
-                    {ORDER_STATUS_LABELS[order.status as OrderStatus]}
+                    {getDisplayStatus(order.status as OrderStatus)}
                   </h2>
                   <p className="text-sm text-gray-600">
                     {toDate(order.createdAt).toLocaleString('ko-KR')}
@@ -114,7 +123,7 @@ export default function OrderDetailPage() {
                 }
                 size="lg"
               >
-                {ORDER_STATUS_LABELS[order.status as OrderStatus]}
+                {getDisplayStatus(order.status as OrderStatus)}
               </Badge>
             </div>
 
@@ -135,7 +144,7 @@ export default function OrderDetailPage() {
                         )}
                       </div>
                       <p className={`text-xs text-center ${idx <= currentStepIndex ? 'text-blue-600 font-semibold' : 'text-gray-500'}`}>
-                        {ORDER_STATUS_LABELS[step]}
+                        {getDisplayStatus(step)}
                       </p>
                       {idx < statusSteps.length - 1 && (
                         <div className={`absolute h-1 w-full top-5 left-1/2 -z-0 ${idx < currentStepIndex ? 'bg-blue-500' : 'bg-gray-200'}`} />

@@ -37,7 +37,16 @@ export default function OrdersPage() {
     ? (allOrders || []).filter(order => order.status !== '결제대기')
     : (allOrders || []).filter(order => order.status === filter);
 
-  const filters: (OrderStatus | '전체')[] = ['전체', '접수', '조리중', '배달중', '완료', '취소'];
+  // 헬퍼 함수: 사용자용 상태 라벨 변환
+  const getDisplayStatus = (status: OrderStatus) => {
+    switch (status) {
+      case '접수': return '접수중';
+      case '접수완료': return '접수확인';
+      default: return ORDER_STATUS_LABELS[status];
+    }
+  };
+
+  const filters: (OrderStatus | '전체')[] = ['전체', '접수', '접수완료', '조리중', '배달중', '완료', '취소'];
 
   if (loading) {
     return (
@@ -74,7 +83,7 @@ export default function OrdersPage() {
                 }
               `}
             >
-              {status === '전체' ? '전체' : ORDER_STATUS_LABELS[status]}
+              {status === '전체' ? '전체' : getDisplayStatus(status)}
             </button>
           ))}
         </div>
@@ -83,7 +92,7 @@ export default function OrdersPage() {
         {filteredOrders.length > 0 ? (
           <div className="space-y-4">
             {filteredOrders.map((order) => (
-              <OrderCard key={order.id} order={order} onClick={() => navigate(`/orders/${order.id}`)} />
+              <OrderCard key={order.id} order={order} onClick={() => navigate(`/orders/${order.id}`)} getDisplayStatus={getDisplayStatus} />
             ))}
           </div>
         ) : (
@@ -107,13 +116,14 @@ export default function OrdersPage() {
   );
 }
 
-function OrderCard({ order, onClick }: { order: Order; onClick: () => void }) {
+function OrderCard({ order, onClick, getDisplayStatus }: { order: Order; onClick: () => void; getDisplayStatus: (s: OrderStatus) => string }) {
   const [showReviewModal, setShowReviewModal] = useState(false);
   const statusColor = ORDER_STATUS_COLORS[order.status as OrderStatus];
 
   const getStatusIcon = (status: OrderStatus) => {
     switch (status) {
       case '접수':
+      case '접수완료':
       case '조리중':
         return <Clock className="w-5 h-5" />;
       case '배달중':
@@ -159,7 +169,7 @@ function OrderCard({ order, onClick }: { order: Order; onClick: () => void }) {
                   order.status === '배달중' ? 'secondary' :
                     'primary'
             }>
-              {ORDER_STATUS_LABELS[order.status as OrderStatus]}
+              {getDisplayStatus(order.status)}
             </Badge>
           </div>
 

@@ -1,33 +1,34 @@
 import { useEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useStore } from '../../contexts/StoreContext';
+import { useAuth } from '../../contexts/AuthContext';
 import { useFirestoreCollection } from '../../hooks/useFirestoreCollection';
-import { getOrdersByStatusQuery, getAllOrdersQuery } from '../../services/orderService';
+import { getAllOrdersQuery } from '../../services/orderService';
 import { Order } from '../../types/order';
 import { toast } from 'sonner';
-import { Bell } from 'lucide-react';
 
 export default function AdminOrderAlert() {
     const { store } = useStore();
+    const { isAdmin } = useAuth();
+    const navigate = useNavigate();
     const audioRef = useRef<HTMLAudioElement | null>(null);
     const [lastOrderCount, setLastOrderCount] = useState<number>(0);
 
     // 전체 주문을 구독하여 새 주문 감지
+    // 관리자가 아니거나 상점이 없으면 query는 null이 되어 구독하지 않음
     const { data: orders } = useFirestoreCollection<Order>(
-        store?.id ? getAllOrdersQuery(store.id) : null
+        (isAdmin && store?.id) ? getAllOrdersQuery(store.id) : null
     );
 
-    // Notification Sound (Base64 MP3 - 'Ding')
-    const NOTIFICATION_SOUND = "data:audio/mpeg;base64,//uQxAAAAAAAAAAAAEluZm8AAAAPAAAABAAAACwAAAAAAABPAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABMYXZjNTguMjAuMTAwAAAAAAAAAAAA//uQwAAAAAAAD8AAAAAAAALAAAAAAAAAAAAAADH/y3/8v/y//L/8v/y//L/8v/y//L/8v/y//L/8v/y//L/8v/y//L/8v/y//L/8v/y//L/8v/y//L/8v/y//L/8v/y//L/8v/y//L/8v/y//L/8v/y//L/8v/y//L/8v/y//L/8v/y//L/8v/y//L/8v/y//L/8v/y//L/8v/y//L/8v/y//L/8v/y//L/8v/y//L/8v/y//L/8v/y//uQwCAAAAB/wAAAAAAAACwAAAAAAAAAAAAAAIAAABAAAAAAAAAAAAAAABAAAAAAAAAAAAAAABAAAAAAAAAAAAAAABAAAAAAAAAAAAAAABAAAAAAAAAAAAAAABAAAAAAAAAAAAAAABAAAAAAAAAAAAAAABAAAAAAAAAAAAAAABAAAAAAAAAAAAAAABAAAAAAAAAAAAAAABAAAAAAAAAAAAAAABAAAAAAAA//uQwCAAAAB/wAAAAAAAACwAAAAAAAAAAAAAAIAAABAAAAAAAAAAAAAAABAAAAAAAAAAAAAAABAAAAAAAAAAAAAAABAAAAAAAAAAAAAAABAAAAAAAAAAAAAAABAAAAAAAAAAAAAAABAAAAAAAAAAAAAAABAAAAAAAAAAAAAAABAAAAAAAAAAAAAAABAAAAAAAAAAAAAAABAAAAAAAAAAAAAAABAAAAAAAA//uQwCAAAAB/wAAAAAAAACwAAAAAAAAAAAAAAIAAABAAAAAAAAAAAAAAABAAAAAAAAAAAAAAABAAAAAAAAAAAAAAABAAAAAAAAAAAAAAABAAAAAAAAAAAAAAABAAAAAAAAAAAAAAABAAAAAAAAAAAAAAABAAAAAAAAAAAAAAABAAAAAAAAAAAAAAABAAAAAAAAAAAAAAABAAAAAAAAAAAAAAABAAAAAAAA";
-
     useEffect(() => {
-        // Initialize audio with Base64 source
-        audioRef.current = new Audio(NOTIFICATION_SOUND);
+        // Initialize audio with custom file source
+        audioRef.current = new Audio('/notification.mp3');
         // Preload to ensure readiness
         audioRef.current.load();
     }, []);
 
     useEffect(() => {
-        if (!orders) return;
+        if (!orders || !isAdmin) return;
 
         // 초기 로딩 시에는 알림 울리지 않음
         if (lastOrderCount === 0 && orders.length > 0) {
@@ -58,14 +59,14 @@ export default function AdminOrderAlert() {
                 duration: 5000,
                 action: {
                     label: '확인',
-                    onClick: () => window.location.href = '/admin/orders'
+                    onClick: () => navigate('/admin/orders')
                 }
             });
         }
         setLastOrderCount(orders.length); // Update count
-    }, [orders, lastOrderCount]);
+    }, [orders, lastOrderCount, isAdmin, navigate]);
 
-
+    if (!isAdmin) return null;
 
     return null; // UI 없음
 }

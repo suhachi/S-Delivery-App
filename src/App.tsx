@@ -25,6 +25,7 @@ import { CartProvider } from './contexts/CartContext';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { StoreProvider, useStore } from './contexts/StoreContext';
 import TopBar from './components/common/TopBar';
+import AdminOrderAlert from './components/admin/AdminOrderAlert';
 import NicepayReturnPage from './pages/NicepayReturnPage';
 import './styles/globals.css';
 
@@ -95,6 +96,7 @@ function AppContent() {
     <CartProvider>
       <div className="min-h-screen bg-gray-50">
         {user && <TopBar />}
+        <AdminOrderAlert />
         <Routes>
           <Route path="/" element={<WelcomePage />} />
           <Route path="/login" element={<LoginPage />} />

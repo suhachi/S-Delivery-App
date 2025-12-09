@@ -153,7 +153,7 @@ export default function MenuDetailModal({ menu, onClose }: MenuDetailModalProps)
                           </span>
                         </button>
 
-                        {selected && (
+                        {selected && option.quantity !== undefined && (
                           <div className="flex items-center justify-between bg-blue-50 p-3 border-t border-blue-100 animate-slide-down">
                             <span className="text-sm text-blue-800 font-medium ml-1">수량</span>
                             <div className="flex items-center bg-white rounded-lg border border-blue-200 shadow-sm">

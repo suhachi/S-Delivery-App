@@ -197,7 +197,7 @@ export default function ReviewModal({ orderId, onClose, onSuccess }: ReviewModal
               <Button
                 type="submit"
                 fullWidth
-                loading={isLoading}
+                isLoading={isLoading}
               >
                 리뷰 등록
               </Button>
@@ -211,7 +211,7 @@ export default function ReviewModal({ orderId, onClose, onSuccess }: ReviewModal
                   variant="danger"
                   fullWidth
                   onClick={handleDelete}
-                  loading={isDeleting}
+                  isLoading={isDeleting}
                 >
                   리뷰 삭제
                 </Button>

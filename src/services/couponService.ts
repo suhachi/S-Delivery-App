@@ -72,11 +72,12 @@ export async function toggleCouponActive(storeId: string, couponId: string, isAc
 }
 
 // 쿠폰 사용
-export async function useCoupon(storeId: string, couponId: string) {
+export async function useCoupon(storeId: string, couponId: string, userId: string) {
   try {
     const couponRef = doc(db, 'stores', storeId, 'coupons', couponId);
     await updateDoc(couponRef, {
       usedCount: increment(1),
+      usedByUserIds: arrayUnion(userId)
     });
   } catch (error) {
     console.error('쿠폰 사용 처리 실패:', error);

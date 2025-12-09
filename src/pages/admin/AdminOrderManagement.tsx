@@ -21,7 +21,7 @@ function toDate(date: any): Date {
 
 // 헬퍼 함수: 다음 주문 상태 계산
 function getNextStatus(currentStatus: OrderStatus): OrderStatus | null {
-  const statusFlow: OrderStatus[] = ['접수', '조리중', '배달중', '완료'];
+  const statusFlow: OrderStatus[] = ['접수', '접수완료', '조리중', '배달중', '완료'];
   const currentIndex = statusFlow.indexOf(currentStatus);
   if (currentIndex >= 0 && currentIndex < statusFlow.length - 1) {
     return statusFlow[currentIndex + 1];
@@ -43,7 +43,7 @@ export default function AdminOrderManagement() {
     ? (allOrders || []).filter(order => order.status !== '결제대기')
     : (allOrders || []).filter(order => order.status === filter);
 
-  const filters: (OrderStatus | '전체')[] = ['전체', '접수', '조리중', '배달중', '완료', '취소'];
+  const filters: (OrderStatus | '전체')[] = ['전체', '접수', '접수완료', '조리중', '배달중', '완료', '취소'];
 
   const handleStatusChange = async (orderId: string, newStatus: OrderStatus) => {
     if (!store?.id) return;
@@ -71,7 +71,7 @@ export default function AdminOrderManagement() {
   return (
     <div className="flex min-h-screen bg-gray-50">
       <AdminSidebar />
-      <AdminOrderAlert />
+
 
       <main className="flex-1 p-8">
         <div className="max-w-7xl mx-auto">
