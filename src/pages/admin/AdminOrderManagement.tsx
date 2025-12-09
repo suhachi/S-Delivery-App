@@ -8,7 +8,7 @@ import Button from '../../components/common/Button';
 import Badge from '../../components/common/Badge';
 import { useStore } from '../../contexts/StoreContext';
 import { useFirestoreCollection } from '../../hooks/useFirestoreCollection';
-import { updateOrderStatus, getAllOrdersQuery } from '../../services/orderService';
+import { updateOrderStatus, deleteOrder, getAllOrdersQuery } from '../../services/orderService';
 import AdminOrderAlert from '../../components/admin/AdminOrderAlert';
 
 // 헬퍼 함수: Firestore Timestamp 처리를 위한 toDate
@@ -68,6 +68,19 @@ export default function AdminOrderManagement() {
     }
   };
 
+  const handleDelete = async (orderId: string) => {
+    if (!store?.id) return;
+    if (!window.confirm('정말로 이 주문을 삭제하시겠습니까? \n삭제된 주문은 복구할 수 없으며, 고객의 주문 내역에서도 사라집니다.')) return;
+
+    try {
+      await deleteOrder(store.id, orderId);
+      toast.success('주문이 삭제되었습니다');
+    } catch (error) {
+      console.error(error);
+      toast.error('주문 삭제에 실패했습니다');
+    }
+  };
+
   return (
     <div className="flex min-h-screen bg-gray-50">
       <AdminSidebar />
@@ -117,6 +130,7 @@ export default function AdminOrderManagement() {
                   isExpanded={expandedOrder === order.id}
                   onToggleExpand={() => setExpandedOrder(expandedOrder === order.id ? null : order.id)}
                   onStatusChange={handleStatusChange}
+                  onDelete={handleDelete}
                 />
               ))
             ) : (
@@ -137,9 +151,10 @@ interface OrderCardProps {
   isExpanded: boolean;
   onToggleExpand: () => void;
   onStatusChange: (orderId: string, newStatus: OrderStatus) => void;
+  onDelete: (orderId: string) => void;
 }
 
-function OrderCard({ order, isExpanded, onToggleExpand, onStatusChange }: OrderCardProps) {
+function OrderCard({ order, isExpanded, onToggleExpand, onStatusChange, onDelete }: OrderCardProps) {
   const statusColor = ORDER_STATUS_COLORS[order.status as OrderStatus];
   const nextStatus = getNextStatus(order.status);
 
@@ -281,6 +296,18 @@ function OrderCard({ order, isExpanded, onToggleExpand, onStatusChange }: OrderC
                   취소
                 </Button>
               </div>
+            </div>
+          )}
+          {/* Delete Button for Completed/Cancelled Orders */}
+          {(order.status === '완료' || order.status === '취소') && (
+            <div className="pt-4 border-t border-gray-200 text-right">
+              <Button
+                variant="outline"
+                onClick={() => onDelete(order.id)}
+                className="text-red-600 border-red-200 hover:bg-red-50 hover:border-red-300"
+              >
+                주문 내역 삭제
+              </Button>
             </div>
           )}
         </div>

@@ -58,6 +58,18 @@ export async function cancelOrder(storeId: string, orderId: string) {
   }
 }
 
+// 주문 삭제 (Hard Delete)
+export async function deleteOrder(storeId: string, orderId: string) {
+  try {
+    const { deleteDoc } = await import('firebase/firestore');
+    const orderRef = doc(db, 'stores', storeId, 'orders', orderId);
+    await deleteDoc(orderRef);
+  } catch (error) {
+    console.error('주문 삭제 실패:', error);
+    throw error;
+  }
+}
+
 // Query 헬퍼 함수들
 export function getUserOrdersQuery(storeId: string, userId: string) {
   return query(
