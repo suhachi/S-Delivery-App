@@ -16,12 +16,14 @@ export default function AdminOrderAlert() {
         store?.id ? getAllOrdersQuery(store.id) : null
     );
 
+    // Notification Sound (Base64 MP3 - 'Ding')
+    const NOTIFICATION_SOUND = "data:audio/mpeg;base64,//uQxAAAAAAAAAAAAEluZm8AAAAPAAAABAAAACwAAAAAAABPAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABMYXZjNTguMjAuMTAwAAAAAAAAAAAA//uQwAAAAAAAD8AAAAAAAALAAAAAAAAAAAAAADH/y3/8v/y//L/8v/y//L/8v/y//L/8v/y//L/8v/y//L/8v/y//L/8v/y//L/8v/y//L/8v/y//L/8v/y//L/8v/y//L/8v/y//L/8v/y//L/8v/y//L/8v/y//L/8v/y//L/8v/y//L/8v/y//L/8v/y//L/8v/y//L/8v/y//L/8v/y//L/8v/y//L/8v/y//L/8v/y//L/8v/y//uQwCAAAAB/wAAAAAAAACwAAAAAAAAAAAAAAIAAABAAAAAAAAAAAAAAABAAAAAAAAAAAAAAABAAAAAAAAAAAAAAABAAAAAAAAAAAAAAABAAAAAAAAAAAAAAABAAAAAAAAAAAAAAABAAAAAAAAAAAAAAABAAAAAAAAAAAAAAABAAAAAAAAAAAAAAABAAAAAAAAAAAAAAABAAAAAAAAAAAAAAABAAAAAAAA//uQwCAAAAB/wAAAAAAAACwAAAAAAAAAAAAAAIAAABAAAAAAAAAAAAAAABAAAAAAAAAAAAAAABAAAAAAAAAAAAAAABAAAAAAAAAAAAAAABAAAAAAAAAAAAAAABAAAAAAAAAAAAAAABAAAAAAAAAAAAAAABAAAAAAAAAAAAAAABAAAAAAAAAAAAAAABAAAAAAAAAAAAAAABAAAAAAAAAAAAAAABAAAAAAAA//uQwCAAAAB/wAAAAAAAACwAAAAAAAAAAAAAAIAAABAAAAAAAAAAAAAAABAAAAAAAAAAAAAAABAAAAAAAAAAAAAAABAAAAAAAAAAAAAAABAAAAAAAAAAAAAAABAAAAAAAAAAAAAAABAAAAAAAAAAAAAAABAAAAAAAAAAAAAAABAAAAAAAAAAAAAAABAAAAAAAAAAAAAAABAAAAAAAAAAAAAAABAAAAAAAA";
+
     useEffect(() => {
-        // 오디오 객체 초기화 (public 폴더에 notification.mp3가 있다고 가정하거나 기본 효과음 사용)
-        // 여기서는 브라우저 기본 기능보다는 실제 파일을 사용하는 것이 좋으나, 
-        // 파일이 없으므로 일단 visual feedback + toast만 강력하게 처리
-        // 필요 시 오디오 파일 추가 필요
-        audioRef.current = new Audio('/notification.mp3'); // 예시 경로
+        // Initialize audio with Base64 source
+        audioRef.current = new Audio(NOTIFICATION_SOUND);
+        // Preload to ensure readiness
+        audioRef.current.load();
     }, []);
 
     useEffect(() => {
@@ -39,18 +41,16 @@ export default function AdminOrderAlert() {
             const latestOrder = orders[0]; // 정렬이 최신순이라면
 
             // 알림음 재생 시도
-            try {
-                // 브라우저 정책상 사용자 인터랙션 없이는 재생 안 될 수 있음
-                const audioData = "data:audio/wav;base64,UklGRl9vT19XQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YU..."; // 짧은 비프음 Base64 (생략)
-                // 대신 Web Audio API나 간단한 Beep 사용 가능하면 좋음. 
-                // 여기서는 일단 console.log와 toast로 대체하거나 가상의 파일 경로 사용
+            if (audioRef.current) {
+                audioRef.current.currentTime = 0; // Rewind to start
+                const playPromise = audioRef.current.play();
 
-                // 실제 구현: 알림음 재생
-                if (audioRef.current) {
-                    audioRef.current.play().catch(e => console.log('Audio play failed:', e));
+                if (playPromise !== undefined) {
+                    playPromise.catch(error => {
+                        console.error('Audio playback failed (Autoplay blocked?):', error);
+                        // Fallback: Could show a persistent visual alert here if needed
+                    });
                 }
-            } catch (e) {
-                console.error(e);
             }
 
             toast.message('새로운 주문이 도착했습니다! 🔔', {
@@ -62,9 +62,10 @@ export default function AdminOrderAlert() {
                 }
             });
         }
-
-        setLastOrderCount(orders.length);
+        setLastOrderCount(orders.length); // Update count
     }, [orders, lastOrderCount]);
+
+
 
     return null; // UI 없음
 }
