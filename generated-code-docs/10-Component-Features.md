@@ -1,6 +1,86 @@
 ﻿# 10-Component-Features
 
-Generated: 2025-12-09 15:56:58
+Generated: 2025-12-10 01:44:09
+
+---
+
+## File: src\components\admin\AdminOrderAlert.tsx
+
+```typescript
+import { useEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useStore } from '../../contexts/StoreContext';
+import { useAuth } from '../../contexts/AuthContext';
+import { useFirestoreCollection } from '../../hooks/useFirestoreCollection';
+import { getAllOrdersQuery } from '../../services/orderService';
+import { Order } from '../../types/order';
+import { toast } from 'sonner';
+
+export default function AdminOrderAlert() {
+    const { store } = useStore();
+    const { isAdmin } = useAuth();
+    const navigate = useNavigate();
+    const audioRef = useRef<HTMLAudioElement | null>(null);
+    const [lastOrderCount, setLastOrderCount] = useState<number>(0);
+
+    // 전체 주문을 구독하여 새 주문 감지
+    // 관리자가 아니거나 상점이 없으면 query는 null이 되어 구독하지 않음
+    const { data: orders } = useFirestoreCollection<Order>(
+        (isAdmin && store?.id) ? getAllOrdersQuery(store.id) : null
+    );
+
+    useEffect(() => {
+        // Initialize audio with custom file source
+        audioRef.current = new Audio('/notification.mp3');
+        // Preload to ensure readiness
+        audioRef.current.load();
+    }, []);
+
+    useEffect(() => {
+        if (!orders || !isAdmin) return;
+
+        // 초기 로딩 시에는 알림 울리지 않음
+        if (lastOrderCount === 0 && orders.length > 0) {
+            setLastOrderCount(orders.length);
+            return;
+        }
+
+        // 새 주문이 추가된 경우
+        if (orders.length > lastOrderCount) {
+            const newOrdersCount = orders.length - lastOrderCount;
+            const latestOrder = orders[0]; // 정렬이 최신순이라면
+
+            // 알림음 재생 시도
+            if (audioRef.current) {
+                audioRef.current.currentTime = 0; // Rewind to start
+                const playPromise = audioRef.current.play();
+
+                if (playPromise !== undefined) {
+                    playPromise.catch(error => {
+                        console.error('Audio playback failed (Autoplay blocked?):', error);
+                        // Fallback: Could show a persistent visual alert here if needed
+                    });
+                }
+            }
+
+            toast.message('새로운 주문이 도착했습니다! 🔔', {
+                description: `${latestOrder.items[0].name} 외 ${latestOrder.items.length - 1}건 (${latestOrder.totalPrice.toLocaleString()}원)`,
+                duration: 5000,
+                action: {
+                    label: '확인',
+                    onClick: () => navigate('/admin/orders')
+                }
+            });
+        }
+        setLastOrderCount(orders.length); // Update count
+    }, [orders, lastOrderCount, isAdmin, navigate]);
+
+    if (!isAdmin) return null;
+
+    return null; // UI 없음
+}
+
+```
 
 ---
 
@@ -393,15 +473,15 @@ interface MenuCardProps {
 export default function MenuCard({ menu }: MenuCardProps) {
   const { addItem } = useCart();
   const [showDetail, setShowDetail] = useState(false);
-  
+
   const handleQuickAdd = (e: React.MouseEvent) => {
     e.stopPropagation();
-    
+
     if (menu.soldout) {
       toast.error('품절된 메뉴입니다');
       return;
     }
-    
+
     if (menu.options && menu.options.length > 0) {
       // 옵션이 있으면 상세 모달 열기
       setShowDetail(true);
@@ -427,19 +507,19 @@ export default function MenuCard({ menu }: MenuCardProps) {
         className={`overflow-hidden ${menu.soldout ? 'opacity-60' : ''}`}
       >
         {/* Image */}
-        <div className="relative aspect-[4/3] overflow-hidden bg-gray-100">
+        <div className="relative aspect-[4/3] overflow-hidden bg-gray-100 group">
           {menu.imageUrl ? (
             <img
               src={menu.imageUrl}
               alt={menu.name}
-              className="w-full h-full object-cover transform hover:scale-110 transition-transform duration-300"
+              className="w-full h-full object-cover transform transition-all duration-500 group-hover:scale-110 group-hover:brightness-105"
             />
           ) : (
             <div className="w-full h-full flex items-center justify-center text-gray-400">
               <span className="text-5xl">🍜</span>
             </div>
           )}
-          
+
           {/* Badges */}
           <div className="absolute top-3 left-3 flex flex-wrap gap-1.5">
             {menu.category.slice(0, 2).map((cat) => (
@@ -448,7 +528,7 @@ export default function MenuCard({ menu }: MenuCardProps) {
               </Badge>
             ))}
           </div>
-          
+
           {menu.soldout && (
             <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
               <Badge variant="danger" size="lg">
@@ -463,11 +543,11 @@ export default function MenuCard({ menu }: MenuCardProps) {
           <h3 className="text-lg font-semibold text-gray-900 mb-1 line-clamp-1">
             {menu.name}
           </h3>
-          
+
           <p className="text-sm text-gray-600 mb-3 line-clamp-2">
             {menu.description}
           </p>
-          
+
           <div className="flex items-center justify-between">
             <div>
               <span className="text-2xl font-bold text-blue-600">
@@ -475,7 +555,7 @@ export default function MenuCard({ menu }: MenuCardProps) {
               </span>
               <span className="text-sm text-gray-600 ml-1">원</span>
             </div>
-            
+
             <Button
               size="sm"
               onClick={handleQuickAdd}
@@ -486,7 +566,7 @@ export default function MenuCard({ menu }: MenuCardProps) {
               담기
             </Button>
           </div>
-          
+
           {menu.options && menu.options.length > 0 && (
             <p className="mt-2 text-xs text-gray-500">
               {menu.options.length}개의 옵션 선택 가능
@@ -536,13 +616,26 @@ export default function MenuDetailModal({ menu, onClose }: MenuDetailModalProps)
       if (exists) {
         return prev.filter(opt => opt.id !== option.id);
       } else {
-        return [...prev, option];
+        return [...prev, { ...option, quantity: 1 }];
       }
     });
   };
 
+  const updateOptionQuantity = (optionId: string, delta: number) => {
+    setSelectedOptions(prev => {
+      return prev.map(opt => {
+        if (opt.id === optionId) {
+          const newQuantity = (opt.quantity || 1) + delta;
+          if (newQuantity < 1) return opt; // Minimum 1
+          return { ...opt, quantity: newQuantity };
+        }
+        return opt;
+      });
+    });
+  };
+
   const getTotalPrice = () => {
-    const optionsPrice = selectedOptions.reduce((sum, opt) => sum + opt.price, 0);
+    const optionsPrice = selectedOptions.reduce((sum, opt) => sum + (opt.price * (opt.quantity || 1)), 0);
     return (menu.price + optionsPrice) * quantity;
   };
 
@@ -593,7 +686,7 @@ export default function MenuDetailModal({ menu, onClose }: MenuDetailModalProps)
                 <span className="text-8xl">🍜</span>
               </div>
             )}
-            
+
             {menu.soldout && (
               <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
                 <Badge variant="danger" size="lg">
@@ -631,30 +724,60 @@ export default function MenuDetailModal({ menu, onClose }: MenuDetailModalProps)
               <div className="mb-6 pb-6 border-b border-gray-200">
                 <h3 className="font-semibold text-gray-900 mb-3">옵션 선택</h3>
                 <div className="space-y-2">
-                  {menu.options.map((option) => (
-                    <button
-                      key={option.id}
-                      onClick={() => toggleOption(option)}
-                      className={`
-                        w-full flex items-center justify-between p-4 rounded-lg border-2 transition-all
-                        ${
-                          selectedOptions.find(opt => opt.id === option.id)
-                            ? 'border-blue-500 bg-blue-50'
+                  {menu.options.map((option) => {
+                    const selected = selectedOptions.find(opt => opt.id === option.id);
+                    return (
+                      <div
+                        key={option.id}
+                        className={`
+                          w-full rounded-lg border-2 transition-all overflow-hidden
+                          ${selected
+                            ? 'border-blue-500 bg-white'
                             : 'border-gray-200 hover:border-gray-300'
-                        }
-                      `}
-                    >
-                      <div className="flex flex-col items-start">
-                        <span className="font-medium text-gray-900">{option.name}</span>
-                        {option.quantity !== undefined && (
-                          <span className="text-sm text-gray-500">수량: {option.quantity}개</span>
+                          }
+                        `}
+                      >
+                        <button
+                          onClick={() => toggleOption(option)}
+                          className="w-full flex items-center justify-between p-4 text-left"
+                        >
+                          <span className="font-medium text-gray-900">{option.name}</span>
+                          <span className={`${selected ? 'text-blue-600' : 'text-gray-900'} font-semibold`}>
+                            +{option.price.toLocaleString()}원
+                          </span>
+                        </button>
+
+                        {selected && option.quantity !== undefined && (
+                          <div className="flex items-center justify-between bg-blue-50 p-3 border-t border-blue-100 animate-slide-down">
+                            <span className="text-sm text-blue-800 font-medium ml-1">수량</span>
+                            <div className="flex items-center bg-white rounded-lg border border-blue-200 shadow-sm">
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  updateOptionQuantity(option.id, -1);
+                                }}
+                                className="w-8 h-8 flex items-center justify-center text-gray-500 hover:text-blue-600 hover:bg-gray-50 rounded-l-lg transition-colors"
+                              >
+                                <Minus className="w-4 h-4" />
+                              </button>
+                              <span className="w-8 text-center text-sm font-bold text-gray-900">
+                                {selected.quantity || 1}
+                              </span>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  updateOptionQuantity(option.id, 1);
+                                }}
+                                className="w-8 h-8 flex items-center justify-center text-gray-500 hover:text-blue-600 hover:bg-gray-50 rounded-r-lg transition-colors"
+                              >
+                                <Plus className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </div>
                         )}
                       </div>
-                      <span className="text-blue-600 font-semibold">
-                        +{option.price.toLocaleString()}원
-                      </span>
-                    </button>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             )}
@@ -1001,7 +1124,7 @@ export default function NoticePopup() {
 import { Star, User } from 'lucide-react';
 import { useStore } from '../../contexts/StoreContext';
 import { useFirestoreCollection } from '../../hooks/useFirestoreCollection';
-import { getReviewsPath } from '../../lib/firestorePaths';
+import { getAllReviewsQuery } from '../../services/reviewService';
 import { Review } from '../../types/review';
 import Card from '../common/Card';
 import { formatDate } from '../../utils/formatDate';
@@ -1012,7 +1135,7 @@ export default function ReviewList() {
 
   // Firestore에서 리뷰 조회 (최신순)
   const { data: reviews, loading } = useFirestoreCollection<Review>(
-    storeId ? getReviewsPath(storeId) : null
+    storeId ? getAllReviewsQuery(storeId) : null
   );
 
   if (!storeId) {
@@ -1123,12 +1246,12 @@ function ReviewCard({ review }: { review: Review }) {
                   <Star
                     key={star}
                     className={`w-4 h-4 ${star <= review.rating
-                        ? `fill-current ${ratingColor}`
-                        : 'text-gray-300'
+                      ? 'fill-yellow-400 text-yellow-400'
+                      : 'text-gray-300'
                       }`}
                   />
                 ))}
-                <span className={`ml-2 font-semibold ${ratingColor}`}>
+                <span className="ml-2 font-semibold text-gray-900">
                   {review.rating}.0
                 </span>
               </div>
@@ -1142,6 +1265,20 @@ function ReviewCard({ review }: { review: Review }) {
           <p className="text-gray-700 leading-relaxed break-words">
             {review.comment}
           </p>
+
+          {/* Review Image */}
+          {review.images && review.images.length > 0 && (
+            <div className="mt-3">
+              <div className="relative w-32 h-32 rounded-lg overflow-hidden bg-gray-100 border border-gray-200">
+                <img
+                  src={review.images[0]}
+                  alt="Review Type"
+                  className="w-full h-full object-cover cursor-pointer hover:scale-105 transition-transform"
+                  onClick={() => window.open(review.images![0], '_blank')}
+                />
+              </div>
+            </div>
+          )}
 
           {/* Updated indicator */}
           {review.updatedAt && review.updatedAt !== review.createdAt && (
@@ -1162,14 +1299,15 @@ function ReviewCard({ review }: { review: Review }) {
 ## File: src\components\review\ReviewModal.tsx
 
 ```typescript
-import { useState, useEffect } from 'react';
-import { X, Star, Trash2 } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { X, Star, Trash2, Camera } from 'lucide-react';
 import Button from '../common/Button';
 import Card from '../common/Card';
 import { toast } from 'sonner';
 import { useAuth } from '../../contexts/AuthContext';
 import { useStore } from '../../contexts/StoreContext';
 import { createReview, updateReview, deleteReview, getReviewByOrder } from '../../services/reviewService';
+import { uploadReviewImage, validateImageFile } from '../../services/storageService';
 import { Review } from '../../types/review';
 
 interface ReviewModalProps {
@@ -1188,6 +1326,9 @@ export default function ReviewModal({ orderId, onClose, onSuccess }: ReviewModal
   const [existingReview, setExistingReview] = useState<Review | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // 기존 리뷰 확인
   useEffect(() => {
@@ -1200,6 +1341,9 @@ export default function ReviewModal({ orderId, onClose, onSuccess }: ReviewModal
           setExistingReview(review);
           setRating(review.rating);
           setComment(review.comment);
+          if (review.images && review.images.length > 0) {
+            setImagePreview(review.images[0]);
+          }
         }
       } catch (error) {
         console.error('기존 리뷰 조회 실패:', error);
@@ -1208,6 +1352,23 @@ export default function ReviewModal({ orderId, onClose, onSuccess }: ReviewModal
 
     loadExistingReview();
   }, [storeId, orderId, user]);
+
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const validation = validateImageFile(file);
+      if (!validation.valid) {
+        toast.error(validation.error);
+        return;
+      }
+      setImageFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1230,12 +1391,29 @@ export default function ReviewModal({ orderId, onClose, onSuccess }: ReviewModal
     setIsLoading(true);
 
     try {
+      // 이미지 업로드
+      let imageUrls = existingReview?.images || [];
+
+      // 새 이미지가 있으면 업로드
+      if (imageFile) {
+        const url = await uploadReviewImage(imageFile);
+        imageUrls = [url]; // 현재는 1장만 지원 (덮어쓰기)
+      }
+
+      // 이미지를 삭제했다면 (preview가 null이고 file도 null이면)
+      if (!imagePreview && !imageFile) {
+        imageUrls = [];
+      }
+
+      const reviewData = {
+        rating,
+        comment: comment.trim(),
+        images: imageUrls,
+      };
+
       if (existingReview) {
         // 수정
-        await updateReview(storeId, existingReview.id, {
-          rating,
-          comment: comment.trim(),
-        });
+        await updateReview(storeId, existingReview.id, reviewData);
         toast.success('리뷰가 수정되었습니다');
       } else {
         // 생성
@@ -1243,8 +1421,7 @@ export default function ReviewModal({ orderId, onClose, onSuccess }: ReviewModal
           orderId,
           userId: user.id,
           userDisplayName: user.displayName || user.email || '사용자',
-          rating,
-          comment: comment.trim(),
+          ...reviewData,
         });
         toast.success('리뷰가 등록되었습니다');
       }
@@ -1252,6 +1429,7 @@ export default function ReviewModal({ orderId, onClose, onSuccess }: ReviewModal
       onSuccess?.();
       onClose();
     } catch (error) {
+      console.error('Review submit error:', error);
       toast.error('리뷰 처리 중 오류가 발생했습니다');
     } finally {
       setIsLoading(false);
@@ -1348,6 +1526,53 @@ export default function ReviewModal({ orderId, onClose, onSuccess }: ReviewModal
               </p>
             </div>
 
+            {/* Image Upload */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                사진 첨부
+              </label>
+              <div className="flex gap-3 overflow-x-auto py-2">
+                {/* Upload Button */}
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="w-20 h-20 flex flex-col items-center justify-center border border-dashed border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-gray-500 hover:text-blue-500"
+                >
+                  <Camera className="w-6 h-6 mb-1" />
+                  <span className="text-xs">사진 추가</span>
+                </button>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleImageChange}
+                />
+
+                {/* Preview */}
+                {imagePreview && (
+                  <div className="relative w-20 h-20 rounded-lg overflow-hidden border border-gray-200">
+                    <img
+                      src={imagePreview}
+                      alt="Preview"
+                      className="w-full h-full object-cover"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setImageFile(null);
+                        setImagePreview(null);
+                        if (fileInputRef.current) fileInputRef.current.value = '';
+                      }}
+                      className="absolute top-1 right-1 bg-black/50 text-white rounded-full p-0.5 hover:bg-red-500 transition-colors"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+
             {/* Buttons */}
             <div className="flex gap-3">
               <Button
@@ -1361,7 +1586,7 @@ export default function ReviewModal({ orderId, onClose, onSuccess }: ReviewModal
               <Button
                 type="submit"
                 fullWidth
-                loading={isLoading}
+                isLoading={isLoading}
               >
                 리뷰 등록
               </Button>
@@ -1375,7 +1600,7 @@ export default function ReviewModal({ orderId, onClose, onSuccess }: ReviewModal
                   variant="danger"
                   fullWidth
                   onClick={handleDelete}
-                  loading={isDeleting}
+                  isLoading={isDeleting}
                 >
                   리뷰 삭제
                 </Button>
@@ -1387,6 +1612,106 @@ export default function ReviewModal({ orderId, onClose, onSuccess }: ReviewModal
     </div>
   );
 }
+```
+
+---
+
+## File: src\components\review\ReviewPreview.tsx
+
+```typescript
+import { Link } from 'react-router-dom';
+import { Star, ChevronRight, User } from 'lucide-react';
+import { useStore } from '../../contexts/StoreContext';
+import { useFirestoreCollection } from '../../hooks/useFirestoreCollection';
+import { getAllReviewsQuery } from '../../services/reviewService';
+import { Review } from '../../types/review';
+import { formatDate } from '../../utils/formatDate';
+import Card from '../common/Card';
+
+export default function ReviewPreview() {
+    const { store } = useStore();
+    const storeId = store?.id;
+
+    // Fetch reviews (sorted by newest First)
+    const { data: reviews, loading } = useFirestoreCollection<Review>(
+        storeId ? getAllReviewsQuery(storeId) : null
+    );
+
+    // Take only top 5 for preview
+    const recentReviews = reviews ? reviews.slice(0, 5) : [];
+
+    if (!storeId || loading) return null;
+
+    if (recentReviews.length === 0) {
+        return null; // hide if no reviews
+    }
+
+    return (
+        <div className="container mx-auto px-4 mt-8 mb-12">
+            <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-bold flex items-center gap-2">
+                    <span className="text-primary-600">💬</span>
+                    <span>생생 리뷰 미리보기</span>
+                </h2>
+                <Link
+                    to="/reviews"
+                    className="text-sm text-gray-500 hover:text-primary-600 flex items-center gap-1"
+                >
+                    더보기 <ChevronRight className="w-4 h-4" />
+                </Link>
+            </div>
+
+            <div className="flex gap-4 overflow-x-auto hide-scrollbar pb-4 snap-x snap-mandatory">
+                {recentReviews.map((review) => (
+                    <div key={review.id} className="min-w-[280px] w-[280px] snap-start">
+                        <Card
+                            className="h-full flex flex-col p-4 bg-white border border-gray-100 shadow-sm hover:shadow-md transition-shadow cursor-pointer group overflow-hidden"
+                            padding="none"
+                        >
+                            {/* Image if available */}
+                            {review.images && review.images.length > 0 && (
+                                <div className="relative w-full h-32 overflow-hidden bg-gray-100">
+                                    <img
+                                        src={review.images[0]}
+                                        alt="Review"
+                                        className="w-full h-full object-cover transform transition-all duration-500 group-hover:scale-110 group-hover:brightness-105"
+                                    />
+                                </div>
+                            )}
+
+                            <div className="p-4 flex-1 flex flex-col">
+                                <div className="flex items-center justify-between mb-3">
+                                    <div className="flex items-center gap-2">
+                                        <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
+                                            <User className="w-4 h-4 text-blue-600" />
+                                        </div>
+                                        <div className="flex flex-col">
+                                            <span className="text-sm font-semibold text-gray-900 truncate max-w-[100px]">
+                                                {review.userDisplayName}
+                                            </span>
+                                            <div className="flex items-center">
+                                                <Star className="w-3 h-3 fill-yellow-400 text-yellow-400" />
+                                                <span className="text-xs font-bold ml-1">{review.rating}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <span className="text-xs text-gray-400">{formatDate(review.createdAt)}</span>
+                                </div>
+
+                                <div className="flex-1">
+                                    <p className="text-sm text-gray-600 line-clamp-3 break-words">
+                                        {review.comment}
+                                    </p>
+                                </div>
+                            </div>
+                        </Card>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+}
+
 ```
 
 ---

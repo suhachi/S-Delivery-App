@@ -1,6 +1,6 @@
 ﻿# 03-Context-State
 
-Generated: 2025-12-09 15:56:57
+Generated: 2025-12-10 01:44:08
 
 ---
 
@@ -124,7 +124,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
   const getTotalPrice = () => {
     return items.reduce((total, item) => {
-      const optionsPrice = item.options?.reduce((sum, opt) => sum + opt.price, 0) || 0;
+      const optionsPrice = item.options?.reduce((sum, opt) => sum + (opt.price * (opt.quantity || 1)), 0) || 0;
       return total + (item.price + optionsPrice) * item.quantity;
     }, 0);
   };

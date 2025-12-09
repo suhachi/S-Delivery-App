@@ -1,6 +1,6 @@
 ﻿# 04-Custom-Hooks
 
-Generated: 2025-12-09 15:56:57
+Generated: 2025-12-10 01:44:08
 
 ---
 
@@ -310,6 +310,10 @@ export function useFirestoreDocument<T extends DocumentData>(
   const collectionPath = Array.isArray(collectionName)
     ? collectionName.join('/')
     : collectionName;
+
+  const [data, setData] = useState<T | null>(null);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<Error | null>(null);
 
   useEffect(() => {
     if (!documentId) {

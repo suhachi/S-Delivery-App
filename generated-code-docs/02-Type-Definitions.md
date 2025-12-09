@@ -1,6 +1,6 @@
 ﻿# 02-Type-Definitions
 
-Generated: 2025-12-09 15:56:57
+Generated: 2025-12-10 01:44:08
 
 ---
 
@@ -26,6 +26,7 @@ export interface Coupon {
   // 사용 여부 (1회만 사용 가능)
   isUsed: boolean;
   usedAt?: Date;
+  usedByUserIds?: string[]; // 이 쿠폰을 사용한 사용자 ID 목록
 }
 
 export const DISCOUNT_TYPE_LABELS = {
@@ -199,7 +200,7 @@ export interface OrderItem {
   name: string;
   price: number;
   quantity: number;
-  options?: { name: string; price: number }[];
+  options?: { name: string; price: number; quantity?: number }[];
   imageUrl?: string;
 }
 
@@ -208,6 +209,9 @@ export interface Order {
   userId: string;
   items: OrderItem[];
   totalPrice: number;
+  discountAmount?: number;
+  couponId?: string;
+  couponName?: string;
   status: OrderStatus;
   address: string;
   phone: string;
@@ -229,13 +233,14 @@ export interface Order {
   reviewRating?: number;
 }
 
-export type OrderStatus = '결제대기' | '결제실패' | '접수' | '조리중' | '배달중' | '완료' | '취소';
+export type OrderStatus = '결제대기' | '결제실패' | '접수' | '접수완료' | '조리중' | '배달중' | '완료' | '취소';
 export type PaymentType = '앱결제' | '만나서카드' | '만나서현금' | '방문시결제';
 
 export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
   '결제대기': '결제 대기',
   '결제실패': '결제 실패',
   '접수': '주문 접수',
+  '접수완료': '접수 완료',
   '조리중': '조리 중',
   '배달중': '배달 중',
   '완료': '배달 완료',
@@ -246,6 +251,7 @@ export const ORDER_STATUS_COLORS: Record<OrderStatus, { bg: string; text: string
   '결제대기': { bg: 'bg-yellow-100', text: 'text-yellow-700' },
   '결제실패': { bg: 'bg-red-100', text: 'text-red-700' },
   '접수': { bg: 'bg-blue-100', text: 'text-blue-700' },
+  '접수완료': { bg: 'bg-indigo-100', text: 'text-indigo-700' },
   '조리중': { bg: 'bg-orange-100', text: 'text-orange-700' },
   '배달중': { bg: 'bg-purple-100', text: 'text-purple-700' },
   '완료': { bg: 'bg-green-100', text: 'text-green-700' },
@@ -277,13 +283,14 @@ export interface Review {
   userDisplayName: string;
   rating: number; // 1-5
   comment: string;
+  images?: string[];
   createdAt: Date;
   updatedAt?: Date;
 }
 
-export interface CreateReviewData extends Omit<Review, 'id' | 'createdAt' | 'updatedAt'> {}
+export interface CreateReviewData extends Omit<Review, 'id' | 'createdAt' | 'updatedAt'> { }
 
-export interface UpdateReviewData extends Partial<Omit<Review, 'id' | 'orderId' | 'userId' | 'createdAt'>> {}
+export interface UpdateReviewData extends Partial<Omit<Review, 'id' | 'orderId' | 'userId' | 'createdAt'>> { }
 
 ```
 

@@ -1,6 +1,6 @@
 ﻿# 08-Page-Admin
 
-Generated: 2025-12-09 15:56:57
+Generated: 2025-12-10 01:44:09
 
 ---
 
@@ -42,9 +42,10 @@ export default function AdminCouponManagement() {
   };
 
   const handleDeleteCoupon = async (couponId: string) => {
+    if (!store?.id) return;
     if (window.confirm('정말 삭제하시겠습니까?')) {
       try {
-        await deleteCoupon(couponId);
+        await deleteCoupon(store.id, couponId);
         toast.success('쿠폰이 삭제되었습니다');
       } catch (error) {
         toast.error('쿠폰 삭제에 실패했습니다');
@@ -53,8 +54,9 @@ export default function AdminCouponManagement() {
   };
 
   const handleToggleActive = async (couponId: string, currentActive: boolean) => {
+    if (!store?.id) return;
     try {
-      await toggleCouponActive(couponId, !currentActive);
+      await toggleCouponActive(store.id, couponId, !currentActive);
       toast.success('쿠폰 상태가 변경되었습니다');
     } catch (error) {
       toast.error('쿠폰 상태 변경에 실패했습니다');
@@ -62,12 +64,13 @@ export default function AdminCouponManagement() {
   };
 
   const handleSaveCoupon = async (couponData: Omit<Coupon, 'id' | 'createdAt' | 'usedCount'>) => {
+    if (!store?.id) return;
     try {
       if (editingCoupon) {
-        await updateCoupon(editingCoupon.id, couponData);
+        await updateCoupon(store.id, editingCoupon.id, couponData);
         toast.success('쿠폰이 수정되었습니다');
       } else {
-        await createCoupon(couponData);
+        await createCoupon(store.id, couponData);
         toast.success('쿠폰이 추가되었습니다');
       }
       setIsModalOpen(false);
@@ -2092,8 +2095,8 @@ function NoticeFormModal({ notice, onSave, onClose }: NoticeFormModalProps) {
 ## File: src\pages\admin\AdminOrderManagement.tsx
 
 ```typescript
-import { useState } from 'react';
-import { Package, Clock, MapPin, Phone, CreditCard, ChevronDown } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Package, MapPin, Phone, CreditCard, ChevronDown } from 'lucide-react';
 import { Order, OrderStatus, ORDER_STATUS_LABELS, ORDER_STATUS_COLORS, PAYMENT_TYPE_LABELS } from '../../types/order';
 import { toast } from 'sonner';
 import AdminSidebar from '../../components/admin/AdminSidebar';
@@ -2102,11 +2105,20 @@ import Button from '../../components/common/Button';
 import Badge from '../../components/common/Badge';
 import { useStore } from '../../contexts/StoreContext';
 import { useFirestoreCollection } from '../../hooks/useFirestoreCollection';
-import { updateOrderStatus, getAllOrdersQuery } from '../../services/orderService';
+import { updateOrderStatus, deleteOrder, getAllOrdersQuery } from '../../services/orderService';
+import AdminOrderAlert from '../../components/admin/AdminOrderAlert';
+
+// 헬퍼 함수: Firestore Timestamp 처리를 위한 toDate
+function toDate(date: any): Date {
+  if (date?.toDate) return date.toDate();
+  if (date instanceof Date) return date;
+  if (typeof date === 'string') return new Date(date);
+  return new Date();
+}
 
 // 헬퍼 함수: 다음 주문 상태 계산
 function getNextStatus(currentStatus: OrderStatus): OrderStatus | null {
-  const statusFlow: OrderStatus[] = ['접수', '조리중', '배달중', '완료'];
+  const statusFlow: OrderStatus[] = ['접수', '접수완료', '조리중', '배달중', '완료'];
   const currentIndex = statusFlow.indexOf(currentStatus);
   if (currentIndex >= 0 && currentIndex < statusFlow.length - 1) {
     return statusFlow[currentIndex + 1];
@@ -2120,32 +2132,56 @@ export default function AdminOrderManagement() {
   const [expandedOrder, setExpandedOrder] = useState<string | null>(null);
 
   // Firestore에서 주문 조회 (삭제되지 않은 주문만)
-  // getAllOrdersQuery() 내에서 정렬 및 필터 적용 이미 되어 있음.
-  // 주의: order.ts의 getAllOrdersQuery는 'deleted' 필드 등을 이미 처리하고 있어야 함.
-  // 여기서는 클라이언트 사이드 필터링 사용
-  const { data: allOrders, loading } = useFirestoreCollection<Order>(
+  const { data: allOrders } = useFirestoreCollection<Order>(
     store?.id ? getAllOrdersQuery(store.id) : null
   );
 
   const filteredOrders = filter === '전체'
-    ? (allOrders || [])
+    ? (allOrders || []).filter(order => order.status !== '결제대기')
     : (allOrders || []).filter(order => order.status === filter);
 
-  const filters: (OrderStatus | '전체')[] = ['전체', '접수', '조리중', '배달중', '완료', '취소'];
+  const filters: (OrderStatus | '전체')[] = ['전체', '접수', '접수완료', '조리중', '배달중', '완료', '취소'];
 
   const handleStatusChange = async (orderId: string, newStatus: OrderStatus) => {
     if (!store?.id) return;
     try {
       await updateOrderStatus(store.id, orderId, newStatus);
       toast.success(`주문 상태가 '${ORDER_STATUS_LABELS[newStatus]}'(으)로 변경되었습니다`);
+
+      // 주문 접수 시 영수증 자동 출력 (시뮬레이션)
+      if (newStatus === '접수') {
+        setTimeout(() => {
+          window.print();
+        }, 500); // UI 업데이트 후 출력
+      }
+
+    } catch (error: any) {
+      console.error(error);
+      if (error?.code === 'permission-denied') {
+        toast.error('주문 상태를 변경할 권한이 없습니다.');
+      } else {
+        toast.error('주문 상태 변경에 실패했습니다');
+      }
+    }
+  };
+
+  const handleDelete = async (orderId: string) => {
+    if (!store?.id) return;
+    if (!window.confirm('정말로 이 주문을 삭제하시겠습니까? \n삭제된 주문은 복구할 수 없으며, 고객의 주문 내역에서도 사라집니다.')) return;
+
+    try {
+      await deleteOrder(store.id, orderId);
+      toast.success('주문이 삭제되었습니다');
     } catch (error) {
-      toast.error('주문 상태 변경에 실패했습니다');
+      console.error(error);
+      toast.error('주문 삭제에 실패했습니다');
     }
   };
 
   return (
     <div className="flex min-h-screen bg-gray-50">
       <AdminSidebar />
+
 
       <main className="flex-1 p-8">
         <div className="max-w-7xl mx-auto">
@@ -2191,6 +2227,7 @@ export default function AdminOrderManagement() {
                   isExpanded={expandedOrder === order.id}
                   onToggleExpand={() => setExpandedOrder(expandedOrder === order.id ? null : order.id)}
                   onStatusChange={handleStatusChange}
+                  onDelete={handleDelete}
                 />
               ))
             ) : (
@@ -2211,9 +2248,10 @@ interface OrderCardProps {
   isExpanded: boolean;
   onToggleExpand: () => void;
   onStatusChange: (orderId: string, newStatus: OrderStatus) => void;
+  onDelete: (orderId: string) => void;
 }
 
-function OrderCard({ order, isExpanded, onToggleExpand, onStatusChange }: OrderCardProps) {
+function OrderCard({ order, isExpanded, onToggleExpand, onStatusChange, onDelete }: OrderCardProps) {
   const statusColor = ORDER_STATUS_COLORS[order.status as OrderStatus];
   const nextStatus = getNextStatus(order.status);
 
@@ -2231,7 +2269,7 @@ function OrderCard({ order, isExpanded, onToggleExpand, onStatusChange }: OrderC
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-center space-x-3 mb-2">
-                <h3 className="font-bold text-gray-900">주문 #{order.id}</h3>
+                <h3 className="font-bold text-gray-900">주문 #{order.id.slice(0, 8)}</h3>
                 <Badge
                   variant={
                     order.status === '완료' ? 'success' :
@@ -2247,7 +2285,7 @@ function OrderCard({ order, isExpanded, onToggleExpand, onStatusChange }: OrderC
                 {order.items.length}개 상품 · {order.totalPrice.toLocaleString()}원
               </p>
               <p className="text-xs text-gray-500">
-                {new Date(order.createdAt).toLocaleString('ko-KR')}
+                {toDate(order.createdAt).toLocaleString('ko-KR')}
               </p>
             </div>
           </div>
@@ -2265,7 +2303,7 @@ function OrderCard({ order, isExpanded, onToggleExpand, onStatusChange }: OrderC
             <h4 className="font-semibold text-gray-900 mb-3">주문 상품</h4>
             <div className="space-y-2">
               {order.items.map((item, idx) => {
-                const optionsPrice = item.options?.reduce((sum, opt) => sum + opt.price, 0) || 0;
+                const optionsPrice = item.options?.reduce((sum, opt) => sum + (opt.price * (opt.quantity || 1)), 0) || 0;
                 return (
                   <div key={idx} className="flex items-start justify-between p-3 bg-gray-50 rounded-lg">
                     <div className="flex items-start space-x-3 flex-1">
@@ -2278,7 +2316,7 @@ function OrderCard({ order, isExpanded, onToggleExpand, onStatusChange }: OrderC
                         <p className="font-medium text-gray-900">{item.name}</p>
                         {item.options && item.options.length > 0 && (
                           <p className="text-xs text-gray-600">
-                            {item.options.map(opt => `${opt.name} (+${opt.price.toLocaleString()}원)`).join(', ')}
+                            {item.options.map(opt => `${opt.name}${(opt.quantity || 1) > 1 ? ` x${opt.quantity}` : ''} (+${(opt.price * (opt.quantity || 1)).toLocaleString()}원)`).join(', ')}
                           </p>
                         )}
                         <p className="text-sm text-gray-600 mt-1">수량: {item.quantity}개</p>
@@ -2339,26 +2377,10 @@ function OrderCard({ order, isExpanded, onToggleExpand, onStatusChange }: OrderC
                     다음 단계로 ({ORDER_STATUS_LABELS[nextStatus]})
                   </Button>
                 )}
-                <Button
-                  variant="outline"
-                  onClick={() => onStatusChange(order.id, '조리중')}
-                  disabled={order.status === '조리중'}
-                >
-                  조리중
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={() => onStatusChange(order.id, '배달중')}
-                  disabled={order.status === '배달중'}
-                >
-                  배달중
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={() => onStatusChange(order.id, '완료')}
-                >
-                  완료
-                </Button>
+                {/* Manual Status Buttons (Optional but kept for flexibility) */}
+                <div className="hidden sm:flex gap-2 border-l pl-2 ml-2 border-gray-300">
+                  {/* Can expand if needed */}
+                </div>
                 <Button
                   variant="danger"
                   onClick={() => {
@@ -2366,10 +2388,23 @@ function OrderCard({ order, isExpanded, onToggleExpand, onStatusChange }: OrderC
                       onStatusChange(order.id, '취소');
                     }
                   }}
+                  className="ml-auto"
                 >
                   취소
                 </Button>
               </div>
+            </div>
+          )}
+          {/* Delete Button for Completed/Cancelled Orders */}
+          {(order.status === '완료' || order.status === '취소') && (
+            <div className="pt-4 border-t border-gray-200 text-right">
+              <Button
+                variant="outline"
+                onClick={() => onDelete(order.id)}
+                className="text-red-600 border-red-200 hover:bg-red-50 hover:border-red-300"
+              >
+                주문 내역 삭제
+              </Button>
             </div>
           )}
         </div>
@@ -2500,7 +2535,7 @@ export default function AdminReviewManagement() {
       <AdminSidebar />
 
       <div className="flex-1">
-        <TopBar title="리뷰 관리" />
+
 
         <div className="p-6 max-w-7xl mx-auto">
           {/* 통계 */}
@@ -2941,16 +2976,8 @@ export default function AdminStoreSettings() {
                 <ImageUpload
                   label="상점 로고 (선택)"
                   currentImageUrl={formData.logoUrl}
-                  onImageUploaded={async (url) => {
+                  onImageUploaded={(url) => {
                     setFormData(prev => ({ ...prev, logoUrl: url }));
-                    // Auto-save logic
-                    try {
-                      await updateDoc(doc(db, 'stores', 'default'), { logoUrl: url });
-                      toast.success('상점 로고가 저장되었습니다');
-                    } catch (error) {
-                      console.error('Failed to auto-save logo:', error);
-                      toast.error('로고 저장 실패');
-                    }
                   }}
                   onUpload={(file) => uploadStoreImage(file, 'logo')}
                   aspectRatio="square"
@@ -2960,16 +2987,8 @@ export default function AdminStoreSettings() {
                 <ImageUpload
                   label="배너 이미지 (선택)"
                   currentImageUrl={formData.bannerUrl}
-                  onImageUploaded={async (url) => {
+                  onImageUploaded={(url) => {
                     setFormData(prev => ({ ...prev, bannerUrl: url }));
-                    // Auto-save logic
-                    try {
-                      await updateDoc(doc(db, 'stores', 'default'), { bannerUrl: url });
-                      toast.success('배너 이미지가 저장되었습니다');
-                    } catch (error) {
-                      console.error('Failed to auto-save banner:', error);
-                      toast.error('배너 저장 실패');
-                    }
                   }}
                   onUpload={(file) => uploadStoreImage(file, 'banner')}
                   aspectRatio="wide"

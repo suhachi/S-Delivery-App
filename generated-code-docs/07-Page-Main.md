@@ -1,6 +1,6 @@
 ﻿# 07-Page-Main
 
-Generated: 2025-12-09 15:56:57
+Generated: 2025-12-10 01:44:09
 
 ---
 
@@ -20,7 +20,7 @@ export default function CartPage() {
 
   const handleCheckout = () => {
     if (items.length === 0) {
-      toast.error('장바구니가 비어있습니다');
+      toast.error('장바구니가 비어 있습니다');
       return;
     }
     navigate('/checkout');
@@ -41,7 +41,7 @@ export default function CartPage() {
             <ShoppingCart className="w-12 h-12 sm:w-16 sm:h-16 text-white" />
           </div>
           <h2 className="text-xl sm:text-2xl mb-3">
-            장바구니가 ���어있습니다
+            장바구니가 비어 있습니다
           </h2>
           <p className="text-sm sm:text-base text-gray-600 mb-8">
             맛있는 메뉴를 장바구니에 담아보세요
@@ -99,7 +99,7 @@ export default function CartPage() {
             {/* 데스크톱: sticky 카드 */}
             <Card className="hidden lg:block sticky top-24">
               <h2 className="text-xl font-bold text-gray-900 mb-4">주문 요약</h2>
-              
+
               <div className="space-y-3 mb-6 pb-6 border-b border-gray-200">
                 <div className="flex items-center justify-between text-gray-600">
                   <span>상품 금액</span>
@@ -171,7 +171,7 @@ interface CartItemProps {
 }
 
 function CartItem({ item, onRemove, onUpdateQuantity }: CartItemProps) {
-  const optionsPrice = item.options?.reduce((sum, opt) => sum + opt.price, 0) || 0;
+  const optionsPrice = item.options?.reduce((sum, opt) => sum + (opt.price * (opt.quantity || 1)), 0) || 0;
   const itemTotal = (item.price + optionsPrice) * item.quantity;
 
   return (
@@ -201,7 +201,7 @@ function CartItem({ item, onRemove, onUpdateQuantity }: CartItemProps) {
                 <div className="space-y-0.5">
                   {item.options.map((opt, idx) => (
                     <p key={idx} className="text-xs sm:text-sm text-gray-600">
-                      + {opt.name} (+{opt.price.toLocaleString()}원)
+                      + {opt.name} {(opt.quantity || 1) > 1 ? `x${opt.quantity}` : ''} (+{(opt.price * (opt.quantity || 1)).toLocaleString()}원)
                     </p>
                   ))}
                 </div>
@@ -247,6 +247,7 @@ function CartItem({ item, onRemove, onUpdateQuantity }: CartItemProps) {
     </Card>
   );
 }
+
 ```
 
 ---
@@ -257,7 +258,7 @@ function CartItem({ item, onRemove, onUpdateQuantity }: CartItemProps) {
 /// <reference types="vite/client" />
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { MapPin, Phone, CreditCard, Wallet, DollarSign, ArrowLeft, CheckCircle2, ShoppingBag, Package, Ticket, X } from 'lucide-react';
+import { MapPin, Phone, CreditCard, Wallet, DollarSign, ArrowLeft, CheckCircle2, ShoppingBag, Package, Ticket, X, Search } from 'lucide-react';
 import { useCart } from '../contexts/CartContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useStore } from '../contexts/StoreContext';
@@ -265,8 +266,10 @@ import { toast } from 'sonner';
 import Card from '../components/common/Card';
 import Button from '../components/common/Button';
 import Input from '../components/common/Input';
+import AddressSearchModal from '../components/common/AddressSearchModal';
 import { Coupon } from '../types/coupon';
 import { createOrder } from '../services/orderService';
+import { useCoupon } from '../services/couponService';
 import { OrderStatus } from '../types/order';
 import { useFirestoreCollection } from '../hooks/useFirestoreCollection';
 import { getCouponsPath } from '../lib/firestorePaths';
@@ -289,8 +292,10 @@ export default function CheckoutPage() {
 
   const [orderType, setOrderType] = useState<OrderType>('배달주문');
   const [selectedCoupon, setSelectedCoupon] = useState<Coupon | null>(null);
+  const [isAddressSearchOpen, setIsAddressSearchOpen] = useState(false);
   const [formData, setFormData] = useState({
     address: '',
+    detailAddress: '',
     phone: '',
     memo: '',
     paymentType: '앱결제' as '앱결제' | '만나서카드' | '만나서현금' | '방문시결제',
@@ -302,15 +307,33 @@ export default function CheckoutPage() {
   const deliveryFee = orderType === '배달주문' ? 3000 : 0;
 
   // 사용 가능한 쿠폰 필터링
+  // Firestore Timestamp 처리를 위한 헬퍼 함수
+  const toDate = (date: any): Date => {
+    if (date?.toDate) return date.toDate(); // Firestore Timestamp
+    if (date instanceof Date) return date;
+    if (typeof date === 'string') return new Date(date);
+    return new Date(); // Fallback
+  };
+
+  // 사용 가능한 쿠폰 필터링
   const availableCoupons = (coupons || []).filter(coupon => {
     const now = new Date();
     const itemsTotal = getTotalPrice();
-    return (
-      coupon.isActive &&
-      coupon.validFrom <= now &&
-      coupon.validUntil >= now &&
-      itemsTotal >= coupon.minOrderAmount
-    );
+    const validFrom = toDate(coupon.validFrom);
+    const validUntil = toDate(coupon.validUntil);
+    const minOrderAmount = Number(coupon.minOrderAmount) || 0;
+
+    // 만료일의 경우 해당 날짜의 23:59:59까지 유효하도록 설정 (선택사항, 필요시)
+    // 여기서는 단순 시간 비교
+
+    const isValidPeriod = validFrom <= now && validUntil >= now;
+    const isValidAmount = itemsTotal >= minOrderAmount;
+    const isNotUsed = !coupon.usedByUserIds?.includes(user?.id || '');
+
+    // 디버깅을 위해 로그 추가 (필요시 제거)
+    // console.log(`Coupon ${coupon.name}: Active=${coupon.isActive}, Period=${isValidPeriod}, Amount=${isValidAmount}`);
+
+    return coupon.isActive && isValidPeriod && isValidAmount && isNotUsed;
   });
 
   // 쿠폰 할인 금액 계산
@@ -378,6 +401,11 @@ export default function CheckoutPage() {
     setIsSubmitting(true);
 
     try {
+      // 결제 타입에 따른 초기 상태 설정
+      // 앱결제: '결제대기' -> PG 결제 후 '접수'로 변경 (서버)
+      // 그 외(만나서 결제 등): 바로 '접수' 상태로 생성
+      const initialStatus: OrderStatus = formData.paymentType === '앱결제' ? '결제대기' : '접수';
+
       const pendingOrderData = {
         userId: user.id,
         userDisplayName: user.displayName || '사용자',
@@ -387,7 +415,7 @@ export default function CheckoutPage() {
         deliveryFee,
         discountAmount,
         totalPrice: finalTotal,
-        address: formData.address,
+        address: `${formData.address} ${formData.detailAddress}`.trim(),
         phone: formData.phone,
         memo: formData.memo,
         paymentType: formData.paymentType,
@@ -395,18 +423,45 @@ export default function CheckoutPage() {
         couponName: selectedCoupon?.name || null,
         adminDeleted: false,
         reviewed: false,
-        paymentStatus: '결제대기' as const, // 초기 상태
+        paymentStatus: '결제대기' as const, // 결제 완료 여부와 별개
       };
 
-      // 1. 주문을 먼저 '결제대기' 상태로 생성 (createOrder 내부에서 status: '결제대기' 처리 필요하거나 여기서 명시)
-      // orderService의 createOrder가 status를 덮어쓰지 않도록 수정 필요.
-      // 일단 createOrder 호출 시 status 필드를 포함해서 보냅니다.
+      // 1. 주문 생성 (초기 상태 포함)
       const orderId = await createOrder(storeId, {
         ...pendingOrderData,
-        status: '결제대기' as OrderStatus
+        status: initialStatus
       });
 
-      // 2. 결제 수단이 '앱결제'인 경우 NICEPAY 호출
+      // 2. 쿠폰 사용 처리 (주문 생성 성공 시)
+      if (selectedCoupon && storeId && user?.id) {
+        try {
+          await useCoupon(storeId, selectedCoupon.id, user.id);
+        } catch (couponError) {
+          console.error('Failed to use coupon, rolling back order:', couponError);
+          // 쿠폰 처리 실패 시 주문 삭제 (롤백)
+          // 임시로 deleteDoc을 직접 사용하거나 cancelOrder로 대체 가능하지만, 아예 삭제하는 것이 맞음.
+          // 여기서는 에러를 던져서 아래 catch 블록으로 이동시키되, 그 전에 삭제 로직 필요.
+          // createOrder가 성공했으므로 orderId가 존재함.
+
+          // 동적 import로 deleteDoc 등 가져와서 처리하기 보다는, 일단은 에러 메시지 명확히 하고
+          // 사용자에게 '주문 실패 (쿠폰 오류)' 알림. 
+          // 하지만 중복 주문 방지를 위해 여기서 삭제 api 호출이 이상적임.
+          // 간단히는: 에러를 throw하고, 사용자가 다시 시도하게 함. 
+          // 하지만 이미 생성된 주문이 남는게 문제.
+
+          // 해결책: 주문 생성 후 쿠폰 사용이 아니라, 트랜잭션으로 묶는게 베스트지만 
+          // Firestore 클라이언트 SDK에서 서로 다른 컬렉션(주문/쿠폰) 트랜잭션은 가능.
+          // 하지만 지금 구조상 복잡하므로, 롤백 코드를 추가.
+
+          const { doc, deleteDoc } = await import('firebase/firestore');
+          const { db } = await import('../lib/firebase');
+          await deleteDoc(doc(db, 'stores', storeId, 'orders', orderId));
+
+          throw new Error('쿠폰 적용에 실패하여 주문이 취소되었습니다.');
+        }
+      }
+
+      // 3. 결제 수단이 '앱결제'인 경우 NICEPAY 호출
       if (formData.paymentType === '앱결제') {
         const clientId = import.meta.env.VITE_NICEPAY_CLIENT_ID;
         if (!clientId) {
@@ -429,19 +484,12 @@ export default function CheckoutPage() {
           returnUrl: import.meta.env.VITE_NICEPAY_RETURN_URL || `${window.location.origin}/nicepay/return`,
         });
 
-        // NICEPAY 호출 후에는 여기서 리다이렉트되므로 추가 로직 불필요
       } else {
-        // 만나서 결제인 경우 (기존 로직 유지)
-        // 단, 상태는 '접수'로 바로 넘어가야 함 -> createOrder 수정 필요하거나 update 필요
-        // 여기서는 간단히 '접수'로 다시 업데이트해줌
-        const { updateOrderStatus } = await import('../services/orderService');
-        await updateOrderStatus(storeId, orderId, '접수');
-
+        // 만나서 결제인 경우: 이미 '접수' 상태로 생성되었으므로 추가 업데이트 불필요
         clearCart();
         toast.success('주문이 접수되었습니다! 🎉');
         navigate('/orders');
       }
-
     } catch (error) {
       console.error('Order creation error:', error);
       toast.error('주문 처리 중 오류가 발생했습니다');
@@ -534,13 +582,42 @@ export default function CheckoutPage() {
                 </h2>
                 <div className="space-y-4">
                   {orderType === '배달주문' && (
-                    <Input
-                      label="배달 주소"
-                      placeholder="예: 서울시 강남구 테헤란로 123"
-                      value={formData.address}
-                      onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                      required
-                    />
+                    <div className="space-y-2">
+                      <div className="flex gap-2">
+                        <div className="flex-1">
+                          <Input
+                            label="배달 주소"
+                            placeholder="주소 검색을 클릭해주세요"
+                            value={formData.address}
+                            readOnly
+                            onClick={() => setIsAddressSearchOpen(true)}
+                            className="cursor-pointer bg-gray-50"
+                            required
+                          />
+                        </div>
+                        <div className="mt-8">
+                          <Button
+                            type="button"
+                            onClick={() => setIsAddressSearchOpen(true)}
+                            variant="outline"
+                            className="whitespace-nowrap h-[42px]"
+                          >
+                            <Search className="w-4 h-4 mr-1" />
+                            주소 검색
+                          </Button>
+                        </div>
+                      </div>
+                      {formData.address && (
+                        <div className="animate-fade-in">
+                          <Input
+                            placeholder="상세 주소를 입력해주세요 (예: 101동 101호)"
+                            value={formData.detailAddress}
+                            onChange={(e) => setFormData({ ...formData, detailAddress: e.target.value })}
+                            required
+                          />
+                        </div>
+                      )}
+                    </div>
                   )}
                   <Input
                     label="연락처"
@@ -655,7 +732,7 @@ export default function CheckoutPage() {
                                 </p>
                                 <p className="text-xs text-gray-500">
                                   최소 주문 {coupon.minOrderAmount.toLocaleString()}원 · {' '}
-                                  {new Date(coupon.validUntil).toLocaleDateString('ko-KR')}까지
+                                  {toDate(coupon.validUntil).toLocaleDateString('ko-KR')}까지
                                 </p>
                               </div>
                             </div>
@@ -687,14 +764,14 @@ export default function CheckoutPage() {
                 <h2 className="text-xl font-bold text-gray-900 mb-4">주문 상품</h2>
                 <div className="space-y-3">
                   {items.map((item) => {
-                    const optionsPrice = item.options?.reduce((sum, opt) => sum + opt.price, 0) || 0;
+                    const optionsPrice = item.options?.reduce((sum, opt) => sum + (opt.price * (opt.quantity || 1)), 0) || 0;
                     return (
                       <div key={item.id} className="flex justify-between items-start py-2 border-b border-gray-100 last:border-0">
                         <div className="flex-1">
                           <p className="font-medium text-gray-900">{item.name}</p>
                           {item.options && item.options.length > 0 && (
                             <p className="text-sm text-gray-600">
-                              {item.options.map(opt => opt.name).join(', ')}
+                              {item.options.map(opt => `${opt.name}${(opt.quantity || 1) > 1 ? ` x${opt.quantity}` : ''}`).join(', ')}
                             </p>
                           )}
                           <p className="text-sm text-gray-600">수량: {item.quantity}개</p>
@@ -765,6 +842,16 @@ export default function CheckoutPage() {
           </div>
         </form>
       </div>
+      {isAddressSearchOpen && (
+        <AddressSearchModal
+          onClose={() => setIsAddressSearchOpen(false)}
+          onComplete={(address) => {
+            setFormData(prev => ({ ...prev, address }));
+            // 상세 주소 입력창으로 포커스를 이동하면 좋겠지만, 
+            // 여기서는 상태 업데이트만 처리
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -961,6 +1048,7 @@ import { useStore } from '../contexts/StoreContext';
 import { useFirestoreCollection } from '../hooks/useFirestoreCollection';
 import { getAllMenusQuery } from '../services/menuService';
 import { Menu } from '../types/menu';
+import ReviewPreview from '../components/review/ReviewPreview';
 
 export default function MenuPage() {
   const { store } = useStore();
@@ -1061,6 +1149,9 @@ export default function MenuPage() {
           </div>
         )}
       </div>
+
+      {/* Review Preview Section */}
+      <ReviewPreview />
     </div>
   );
 }
@@ -1071,11 +1162,11 @@ export default function MenuPage() {
 ## File: src\pages\MyPage.tsx
 
 ```typescript
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useStore } from '../contexts/StoreContext';
-import { User, ShoppingBag, Ticket, Bell, Store, ChevronRight, LogOut } from 'lucide-react';
+import { User, ShoppingBag, Ticket, Bell, Store, ChevronRight, LogOut, Package } from 'lucide-react';
 import Card from '../components/common/Card';
 import { Order } from '../types/order';
 import { Coupon } from '../types/coupon';
@@ -1107,88 +1198,67 @@ export default function MyPage() {
 
   const { data: allOrders, loading: ordersLoading } = useFirestoreCollection<Order>(ordersQuery);
 
-  // 최근 3개만 잘라서 표시
-  const recentOrders = allOrders ? allOrders.slice(0, 3) : [];
+  // 헬퍼 함수: Firestore Timestamp 처리를 위한 toDate
+  const toDate = (date: any): Date => {
+    if (date?.toDate) return date.toDate();
+    if (date instanceof Date) return date;
+    if (typeof date === 'string') return new Date(date);
+    return new Date();
+  };
+
+  // 최근 3개만 잘라서 표시 (결제대기 상태는 제외 - 미결제 주문 건)
+  const recentOrders = allOrders
+    ? allOrders.filter(o => o.status !== '결제대기').slice(0, 3)
+    : [];
 
   // 2. 사용 가능한 쿠폰 조회 (실데이터)
-  // 현재는 "상점의 활성 쿠폰"을 모두 보여주는 정책 (개인별 쿠폰함 기능이 아직 없다면)
   const couponsQuery = store?.id ? getActiveCouponsQuery(store.id) : null;
   const { data: availableCoupons, loading: couponsLoading } = useFirestoreCollection<Coupon>(couponsQuery);
-
-  useEffect(() => {
-    // 알림 설정 상태 확인 (단순 브라우저 API 체크)
-    if ('Notification' in window) {
-      setNotificationEnabled(Notification.permission === 'granted');
-    }
-  }, []);
 
   const handleLogout = async () => {
     try {
       await logout();
-      navigate('/');
+      navigate('/login');
+      toast.success('로그아웃되었습니다');
     } catch (error) {
-      console.error('로그아웃 실패:', error);
-      toast.error('로그아웃 중 오류가 발생했습니다.');
+      toast.error('로그아웃 실패');
     }
   };
 
-  const handleNotificationToggle = async () => {
-    if (!('Notification' in window)) {
-      toast.error('이 브라우저는 알림을 지원하지 않습니다.');
-      return;
-    }
-
-    if (Notification.permission === 'granted') {
-      toast.info('알림을 비활성화하려면 브라우저 설정에서 변경해주세요.');
-    } else {
-      const permission = await Notification.requestPermission();
-      setNotificationEnabled(permission === 'granted');
-
-      if (permission === 'granted') {
-        // 추후 FCM 토큰 발급 로직 추가 예정
-        toast.success('알림이 활성화되었습니다!');
-      }
-    }
+  const handleNotificationToggle = () => {
+    setNotificationEnabled(!notificationEnabled);
+    toast.success(`알림이 ${!notificationEnabled ? '켜졌습니다' : '꺼졌습니다'}`);
   };
-
-  if (!user) {
-    return null;
-  }
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-20">
-      {/* 헤더 */}
-      <div className="gradient-primary text-white py-8 px-4">
-        <div className="max-w-4xl mx-auto">
-          <h1 className="text-2xl mb-4">마이페이지</h1>
-          <div className="flex items-center gap-4">
-            <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center text-3xl">
-              <User className="w-8 h-8" />
-            </div>
-            <div>
-              <p className="text-xl">{user.displayName || '사용자'}</p>
-              <p className="text-sm text-white/80">{user.email}</p>
-            </div>
+    <div className="min-h-screen bg-gray-50 py-8">
+      <div className="container mx-auto px-4 mb-20">
+        {/* 프로필 섹션 */}
+        <div className="flex items-center gap-4 mb-8">
+          <div className="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center">
+            <User className="w-8 h-8 text-gray-500" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">
+              {user?.displayName || '고객'}님
+            </h1>
+            <p className="text-gray-500">{user?.email}</p>
           </div>
         </div>
-      </div>
 
-      <div className="max-w-4xl mx-auto px-4 -mt-6">
-        {/* 2열 2행 그리드 레이아웃 */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* 주문내역 */}
+        <div className="space-y-6">
+          {/* 최근 주문 내역 */}
           <Card className="p-6">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
                 <ShoppingBag className="w-5 h-5 text-blue-600" />
-                <h2 className="text-lg">주문내역</h2>
+                <h2 className="text-lg">최근 주문 내역</h2>
               </div>
               <button
                 onClick={() => navigate('/orders')}
-                className="text-sm text-blue-600 hover:text-blue-700 flex items-center gap-1"
+                className="text-sm text-gray-500 hover:text-gray-700 flex items-center"
               >
-                전체보기
-                <ChevronRight className="w-4 h-4" />
+                전체보기 <ChevronRight className="w-4 h-4 ml-1" />
               </button>
             </div>
 
@@ -1197,7 +1267,7 @@ export default function MyPage() {
                 <p className="text-sm">로딩 중...</p>
               </div>
             ) : recentOrders.length > 0 ? (
-              <div className="space-y-3">
+              <div className="space-y-4">
                 {recentOrders.map((order) => (
                   <div
                     key={order.id}
@@ -1205,13 +1275,15 @@ export default function MyPage() {
                     onClick={() => navigate(`/orders/${order.id}`)}
                   >
                     <div>
-                      <p className="text-sm">{order.items[0]?.name} 외 {order.items.length - 1}개</p>
+                      <p className="text-sm font-medium">
+                        {order.items[0]?.name} {order.items.length > 1 ? `외 ${order.items.length - 1}개` : ''}
+                      </p>
                       <p className="text-xs text-gray-500">
-                        {new Date(order.createdAt).toLocaleDateString('ko-KR')}
+                        {toDate(order.createdAt).toLocaleDateString('ko-KR')}
                       </p>
                     </div>
                     <div className="text-right">
-                      <p className="text-sm">{order.totalPrice.toLocaleString()}원</p>
+                      <p className="text-sm font-bold">{order.totalPrice.toLocaleString()}원</p>
                       <p className="text-xs text-blue-600">{order.status}</p>
                     </div>
                   </div>
@@ -1219,6 +1291,7 @@ export default function MyPage() {
               </div>
             ) : (
               <div className="text-center py-8 text-gray-500">
+                <Package className="w-8 h-8 mx-auto mb-2 text-gray-300" />
                 <p className="text-sm">주문 내역이 없습니다</p>
               </div>
             )}
@@ -1248,7 +1321,7 @@ export default function MyPage() {
                     <div>
                       <p className="font-medium">{coupon.name}</p>
                       <p className="text-xs text-gray-500">
-                        {coupon.validUntil ? new Date(coupon.validUntil).toLocaleDateString('ko-KR') + '까지' : '유효기간 없음'}
+                        {coupon.validUntil ? toDate(coupon.validUntil).toLocaleDateString('ko-KR') + '까지' : '유효기간 없음'}
                       </p>
                     </div>
                     <div className="text-right">
@@ -1278,17 +1351,15 @@ export default function MyPage() {
                   <p className="text-sm text-gray-500">주문 상태 변경 시 알림을 받습니다</p>
                 </div>
               </div>
+              <button
+                onClick={handleNotificationToggle}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${notificationEnabled ? 'bg-blue-600' : 'bg-gray-300'}`}
+              >
+                <span
+                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${notificationEnabled ? 'translate-x-6' : 'translate-x-1'}`}
+                />
+              </button>
             </div>
-            <button
-              onClick={handleNotificationToggle}
-              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${notificationEnabled ? 'bg-blue-600' : 'bg-gray-300'
-                }`}
-            >
-              <span
-                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${notificationEnabled ? 'translate-x-6' : 'translate-x-1'
-                  }`}
-              />
-            </button>
           </Card>
 
           {/* 가게 정보 */}
@@ -1349,28 +1420,28 @@ export default function MyPage() {
               </div>
             </Card>
           )}
-        </div>
 
-        {/* 로그아웃 */}
-        <Card className="p-6 mt-4">
-          <button
-            onClick={handleLogout}
-            className="w-full flex items-center justify-center gap-2 text-red-600 hover:text-red-700 transition-colors"
-          >
-            <LogOut className="w-5 h-5" />
-            <span>로그아웃</span>
-          </button>
-        </Card>
+          {/* 로그아웃 */}
+          <Card className="p-6 mt-4">
+            <button
+              onClick={handleLogout}
+              className="w-full flex items-center justify-center gap-2 text-red-600 hover:text-red-700 transition-colors"
+            >
+              <LogOut className="w-5 h-5" />
+              <span>로그아웃</span>
+            </button>
+          </Card>
 
-        {/* 개발사 정보 */}
-        <div className="mt-8 mb-4 text-center">
-          <p className="text-xs text-gray-400 font-medium">Powered by KS Company</p>
-          <div className="flex items-center justify-center gap-2 mt-1 text-[10px] text-gray-400">
-            <span>개발사: KS컴퍼니</span>
-            <span className="w-px h-2 bg-gray-300"></span>
-            <span>대표: 석경선, 배종수</span>
+          {/* 개발사 정보 */}
+          <div className="mt-8 mb-4 text-center">
+            <p className="text-xs text-gray-400 font-medium">Powered by KS Company</p>
+            <div className="flex items-center justify-center gap-2 mt-1 text-[10px] text-gray-400">
+              <span>개발사: KS컴퍼니</span>
+              <span className="w-px h-2 bg-gray-300"></span>
+              <span>대표: 석경선, 배종수</span>
+            </div>
+            <p className="text-[10px] text-gray-300 mt-1">© 2024 Simple Delivery App Template. All rights reserved.</p>
           </div>
-          <p className="text-[10px] text-gray-300 mt-1">© 2024 Simple Delivery App Template. All rights reserved.</p>
         </div>
       </div>
     </div>
@@ -1471,6 +1542,23 @@ export default function OrderDetailPage() {
     );
   }
 
+  // 헬퍼 함수: Firestore Timestamp 처리를 위한 toDate
+  const toDate = (date: any): Date => {
+    if (date?.toDate) return date.toDate();
+    if (date instanceof Date) return date;
+    if (typeof date === 'string') return new Date(date);
+    return new Date();
+  };
+
+  // 헬퍼 함수: 사용자용 상태 라벨 변환
+  const getDisplayStatus = (status: OrderStatus) => {
+    switch (status) {
+      case '접수': return '접수중';
+      case '접수완료': return '접수확인';
+      default: return ORDER_STATUS_LABELS[status];
+    }
+  };
+
   const statusColor = ORDER_STATUS_COLORS[order.status as OrderStatus] || ORDER_STATUS_COLORS['접수'];
 
   const handleReorder = () => {
@@ -1479,7 +1567,7 @@ export default function OrderDetailPage() {
     // navigate('/cart');
   };
 
-  const statusSteps: OrderStatus[] = ['접수', '조리중', '배달중', '완료'];
+  const statusSteps: OrderStatus[] = ['접수', '접수완료', '조리중', '배달중', '완료'];
   const currentStepIndex = statusSteps.indexOf(order.status as OrderStatus);
 
   return (
@@ -1512,10 +1600,10 @@ export default function OrderDetailPage() {
                 </div>
                 <div>
                   <h2 className="text-2xl font-bold text-gray-900">
-                    {ORDER_STATUS_LABELS[order.status as OrderStatus]}
+                    {getDisplayStatus(order.status as OrderStatus)}
                   </h2>
                   <p className="text-sm text-gray-600">
-                    {order.createdAt ? new Date(order.createdAt).toLocaleString('ko-KR') : '-'}
+                    {toDate(order.createdAt).toLocaleString('ko-KR')}
                   </p>
                 </div>
               </div>
@@ -1528,7 +1616,7 @@ export default function OrderDetailPage() {
                 }
                 size="lg"
               >
-                {ORDER_STATUS_LABELS[order.status as OrderStatus]}
+                {getDisplayStatus(order.status as OrderStatus)}
               </Badge>
             </div>
 
@@ -1537,22 +1625,22 @@ export default function OrderDetailPage() {
               <div className="mb-6">
                 <div className="flex items-center justify-between">
                   {statusSteps.map((step, idx) => (
-                    <div key={step} className="flex-1 flex flex-col items-center">
+                    <div key={step} className="flex-1 flex flex-col items-center relative">
                       <div className={`
-                        w-10 h-10 rounded-full flex items-center justify-center mb-2 transition-all relative z-10
-                        ${idx <= currentStepIndex ? 'gradient-primary text-white' : 'bg-gray-200 text-gray-400'}
+                        w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center mb-2 transition-all relative z-10 shadow-sm
+                        ${idx <= currentStepIndex ? 'gradient-primary text-white ring-2 ring-white' : 'bg-gray-100 text-gray-300'}
                       `}>
                         {idx <= currentStepIndex ? (
-                          <CheckCircle2 className="w-6 h-6" />
+                          <CheckCircle2 className="w-4 h-4 sm:w-6 sm:h-6" />
                         ) : (
-                          <Clock className="w-6 h-6" />
+                          <Clock className="w-4 h-4 sm:w-6 sm:h-6" />
                         )}
                       </div>
-                      <p className={`text-xs text-center ${idx <= currentStepIndex ? 'text-blue-600 font-semibold' : 'text-gray-500'}`}>
-                        {ORDER_STATUS_LABELS[step]}
+                      <p className={`text-[10px] sm:text-xs text-center font-medium whitespace-nowrap ${idx <= currentStepIndex ? 'text-gray-900' : 'text-gray-400'}`}>
+                        {getDisplayStatus(step)}
                       </p>
                       {idx < statusSteps.length - 1 && (
-                        <div className={`absolute h-1 w-full top-5 left-1/2 -z-0 ${idx < currentStepIndex ? 'bg-blue-500' : 'bg-gray-200'}`} />
+                        <div className={`absolute h-[2px] w-full top-4 sm:top-5 left-1/2 -z-0 ${idx < currentStepIndex ? 'bg-primary-500' : 'bg-gray-100'}`} />
                       )}
                     </div>
                   ))}
@@ -1705,6 +1793,14 @@ import { useFirestoreCollection } from '../hooks/useFirestoreCollection';
 import { getUserOrdersQuery } from '../services/orderService';
 import { Order } from '../types/order';
 
+// 헬퍼 함수: Firestore Timestamp 처리를 위한 toDate
+const toDate = (date: any): Date => {
+  if (date?.toDate) return date.toDate();
+  if (date instanceof Date) return date;
+  if (typeof date === 'string') return new Date(date);
+  return new Date();
+};
+
 export default function OrdersPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -1719,10 +1815,19 @@ export default function OrdersPage() {
   const { data: allOrders, loading } = useFirestoreCollection<Order>(ordersQuery);
 
   const filteredOrders = filter === '전체'
-    ? (allOrders || [])
+    ? (allOrders || []).filter(order => order.status !== '결제대기')
     : (allOrders || []).filter(order => order.status === filter);
 
-  const filters: (OrderStatus | '전체')[] = ['전체', '접수', '조리중', '배달중', '완료', '취소'];
+  // 헬퍼 함수: 사용자용 상태 라벨 변환
+  const getDisplayStatus = (status: OrderStatus) => {
+    switch (status) {
+      case '접수': return '접수중';
+      case '접수완료': return '접수확인';
+      default: return ORDER_STATUS_LABELS[status];
+    }
+  };
+
+  const filters: (OrderStatus | '전체')[] = ['전체', '접수', '접수완료', '조리중', '배달중', '완료', '취소'];
 
   if (loading) {
     return (
@@ -1759,7 +1864,7 @@ export default function OrdersPage() {
                 }
               `}
             >
-              {status === '전체' ? '전체' : ORDER_STATUS_LABELS[status]}
+              {status === '전체' ? '전체' : getDisplayStatus(status)}
             </button>
           ))}
         </div>
@@ -1768,7 +1873,7 @@ export default function OrdersPage() {
         {filteredOrders.length > 0 ? (
           <div className="space-y-4">
             {filteredOrders.map((order) => (
-              <OrderCard key={order.id} order={order} onClick={() => navigate(`/orders/${order.id}`)} />
+              <OrderCard key={order.id} order={order} onClick={() => navigate(`/orders/${order.id}`)} getDisplayStatus={getDisplayStatus} />
             ))}
           </div>
         ) : (
@@ -1792,13 +1897,14 @@ export default function OrdersPage() {
   );
 }
 
-function OrderCard({ order, onClick }: { order: Order; onClick: () => void }) {
+function OrderCard({ order, onClick, getDisplayStatus }: { order: Order; onClick: () => void; getDisplayStatus: (s: OrderStatus) => string }) {
   const [showReviewModal, setShowReviewModal] = useState(false);
   const statusColor = ORDER_STATUS_COLORS[order.status as OrderStatus];
 
   const getStatusIcon = (status: OrderStatus) => {
     switch (status) {
       case '접수':
+      case '접수완료':
       case '조리중':
         return <Clock className="w-5 h-5" />;
       case '배달중':
@@ -1827,7 +1933,7 @@ function OrderCard({ order, onClick }: { order: Order; onClick: () => void }) {
               </div>
               <div>
                 <p className="text-sm text-gray-600">
-                  {new Date(order.createdAt).toLocaleDateString('ko-KR', {
+                  {toDate(order.createdAt).toLocaleDateString('ko-KR', {
                     year: 'numeric',
                     month: 'long',
                     day: 'numeric',
@@ -1835,7 +1941,7 @@ function OrderCard({ order, onClick }: { order: Order; onClick: () => void }) {
                     minute: '2-digit',
                   })}
                 </p>
-                <p className="text-xs text-gray-500">주문번호: {order.id}</p>
+                <p className="text-xs text-gray-500">주문번호: {order.id.slice(0, 8)}</p>
               </div>
             </div>
             <Badge variant={
@@ -1844,7 +1950,7 @@ function OrderCard({ order, onClick }: { order: Order; onClick: () => void }) {
                   order.status === '배달중' ? 'secondary' :
                     'primary'
             }>
-              {ORDER_STATUS_LABELS[order.status as OrderStatus]}
+              {getDisplayStatus(order.status)}
             </Badge>
           </div>
 
@@ -1863,7 +1969,7 @@ function OrderCard({ order, onClick }: { order: Order; onClick: () => void }) {
                   </div>
                 </div>
                 <p className="text-sm font-semibold text-gray-900">
-                  {((item.price + (item.options?.reduce((sum: number, opt) => sum + opt.price, 0) || 0)) * item.quantity).toLocaleString()}원
+                  {((item.price + (item.options?.reduce((sum: number, opt) => sum + (opt.price * (opt.quantity || 1)), 0) || 0)) * item.quantity).toLocaleString()}원
                 </p>
               </div>
             ))}

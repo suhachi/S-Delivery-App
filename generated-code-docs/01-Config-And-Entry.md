@@ -1,6 +1,6 @@
 ﻿# 01-Config-And-Entry
 
-Generated: 2025-12-09 15:56:57
+Generated: 2025-12-10 01:44:08
 
 ---
 
@@ -30,10 +30,12 @@ import AdminEventManagement from './pages/admin/AdminEventManagement';
 import AdminStoreSettings from './pages/admin/AdminStoreSettings';
 import NoticePage from './pages/NoticePage';
 import EventsPage from './pages/EventsPage';
+import ReviewBoardPage from './pages/ReviewBoardPage';
 import { CartProvider } from './contexts/CartContext';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { StoreProvider, useStore } from './contexts/StoreContext';
 import TopBar from './components/common/TopBar';
+import AdminOrderAlert from './components/admin/AdminOrderAlert';
 import NicepayReturnPage from './pages/NicepayReturnPage';
 import './styles/globals.css';
 
@@ -104,6 +106,7 @@ function AppContent() {
     <CartProvider>
       <div className="min-h-screen bg-gray-50">
         {user && <TopBar />}
+        <AdminOrderAlert />
         <Routes>
           <Route path="/" element={<WelcomePage />} />
           <Route path="/login" element={<LoginPage />} />
@@ -115,9 +118,15 @@ function AppContent() {
           <Route path="/nicepay/return" element={<NicepayReturnPage />} />
           <Route path="/notices" element={<NoticePage />} />
           <Route path="/events" element={<EventsPage />} />
+
+          {/* ... (imports remain the same) */}
+
+          {/* ... inside AppContent routes ... */}
           <Route path="/orders" element={<RequireAuth><OrdersPage /></RequireAuth>} />
           <Route path="/orders/:orderId" element={<RequireAuth><OrderDetailPage /></RequireAuth>} />
+          <Route path="/reviews" element={<ReviewBoardPage />} />
           <Route path="/checkout" element={<RequireAuth><CheckoutPage /></RequireAuth>} />
+
           <Route path="/mypage" element={<RequireAuth><MyPage /></RequireAuth>} />
 
           {/* Admin Routes */}

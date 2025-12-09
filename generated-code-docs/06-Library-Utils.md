@@ -1,6 +1,6 @@
 ﻿# 06-Library-Utils
 
-Generated: 2025-12-09 15:56:57
+Generated: 2025-12-10 01:44:09
 
 ---
 
@@ -65,7 +65,7 @@ export default onSnapshotSafe;
 ```typescript
 import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore';
+import { initializeFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 import { getMessaging, isSupported } from 'firebase/messaging';
 
@@ -86,7 +86,9 @@ const app = initializeApp(firebaseConfig);
 
 // Firebase 서비스 초기화
 export const auth = getAuth(app);
-export const db = getFirestore(app);
+export const db = initializeFirestore(app, {
+  ignoreUndefinedProperties: true
+});
 export const storage = getStorage(app);
 
 // Firebase Cloud Messaging (FCM) - 선택적

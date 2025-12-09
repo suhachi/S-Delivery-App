@@ -1,6 +1,6 @@
 ﻿# 05-Service-Layer
 
-Generated: 2025-12-09 15:56:57
+Generated: 2025-12-10 01:44:08
 
 ---
 
@@ -17,7 +17,8 @@ import {
   query,
   where,
   orderBy,
-  increment
+  increment,
+  arrayUnion
 } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { Coupon } from '../types/coupon';
@@ -80,11 +81,12 @@ export async function toggleCouponActive(storeId: string, couponId: string, isAc
 }
 
 // 쿠폰 사용
-export async function useCoupon(storeId: string, couponId: string) {
+export async function useCoupon(storeId: string, couponId: string, userId: string) {
   try {
     const couponRef = doc(db, 'stores', storeId, 'coupons', couponId);
     await updateDoc(couponRef, {
       usedCount: increment(1),
+      usedByUserIds: arrayUnion(userId)
     });
   } catch (error) {
     console.error('쿠폰 사용 처리 실패:', error);
@@ -534,6 +536,18 @@ export async function cancelOrder(storeId: string, orderId: string) {
   }
 }
 
+// 주문 삭제 (Hard Delete)
+export async function deleteOrder(storeId: string, orderId: string) {
+  try {
+    const { deleteDoc } = await import('firebase/firestore');
+    const orderRef = doc(db, 'stores', storeId, 'orders', orderId);
+    await deleteDoc(orderRef);
+  } catch (error) {
+    console.error('주문 삭제 실패:', error);
+    throw error;
+  }
+}
+
 // Query 헬퍼 함수들
 export function getUserOrdersQuery(storeId: string, userId: string) {
   return query(
@@ -898,6 +912,12 @@ export async function uploadStoreImage(file: File, type: 'logo' | 'banner'): Pro
   return uploadImage(file, path);
 }
 
+// 리뷰 이미지 업로드
+export async function uploadReviewImage(file: File): Promise<string> {
+  const path = `reviews/${Date.now()}_${file.name}`;
+  return uploadImage(file, path);
+}
+
 ```
 
 ---
@@ -938,8 +958,8 @@ export async function searchUsers(keyword: string): Promise<UserProfile[]> {
             // 이름으로 검색
             q = query(
                 usersRef,
-                where('name', '>=', keyword),
-                where('name', '<=', keyword + '\uf8ff'),
+                where('displayName', '>=', keyword),
+                where('displayName', '<=', keyword + '\uf8ff'),
                 limit(5)
             );
         }
@@ -951,7 +971,7 @@ export async function searchUsers(keyword: string): Promise<UserProfile[]> {
             const data = doc.data();
             users.push({
                 id: doc.id,
-                name: data.name || '이름 없음',
+                name: data.displayName || data.name || '이름 없음',
                 phone: data.phone || '',
                 email: data.email || '',
                 createdAt: data.createdAt,

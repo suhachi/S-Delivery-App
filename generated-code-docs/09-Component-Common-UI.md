@@ -1,6 +1,71 @@
 ﻿# 09-Component-Common-UI
 
-Generated: 2025-12-09 15:56:57
+Generated: 2025-12-10 01:44:09
+
+---
+
+## File: src\components\common\AddressSearchModal.tsx
+
+```typescript
+import DaumPostcodeEmbed from 'react-daum-postcode';
+import { X } from 'lucide-react';
+
+interface AddressSearchModalProps {
+    onComplete: (address: string) => void;
+    onClose: () => void;
+}
+
+export default function AddressSearchModal({ onComplete, onClose }: AddressSearchModalProps) {
+    const handleComplete = (data: any) => {
+        let fullAddress = data.address;
+        let extraAddress = '';
+
+        if (data.addressType === 'R') {
+            if (data.bname !== '') {
+                extraAddress += data.bname;
+            }
+            if (data.buildingName !== '') {
+                extraAddress += (extraAddress !== '' ? `, ${data.buildingName}` : data.buildingName);
+            }
+            fullAddress += (extraAddress !== '' ? ` (${extraAddress})` : '');
+        }
+
+        onComplete(fullAddress);
+        onClose();
+    };
+
+    return (
+        <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 animate-fade-in"
+            onClick={onClose}
+        >
+            <div
+                className="relative w-full max-w-lg bg-white rounded-xl shadow-2xl overflow-hidden animate-slide-up"
+                onClick={(e) => e.stopPropagation()}
+                style={{ height: '550px', display: 'flex', flexDirection: 'column' }}
+            >
+                <div className="flex justify-between items-center p-4 border-b bg-gray-50 flex-shrink-0">
+                    <h3 className="text-lg font-bold text-gray-900">주소 검색</h3>
+                    <button
+                        onClick={onClose}
+                        className="p-2 hover:bg-gray-200 rounded-full transition-colors"
+                    >
+                        <X className="w-5 h-5 text-gray-500" />
+                    </button>
+                </div>
+                <div className="flex-1 w-full relative">
+                    <DaumPostcodeEmbed
+                        onComplete={handleComplete}
+                        style={{ width: '100%', height: '100%' }}
+                        autoClose={false}
+                    />
+                </div>
+            </div>
+        </div>
+    );
+}
+
+```
 
 ---
 
@@ -489,7 +554,7 @@ export default function NotificationGuide() {
 ```typescript
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ShoppingCart, LogOut, User, Store, Menu, X, Bell, Gift } from 'lucide-react';
+import { ShoppingCart, LogOut, User, Store, Menu, X, Bell, Gift, MessageSquare } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '../../contexts/AuthContext';
 import { useCart } from '../../contexts/CartContext';
@@ -535,11 +600,12 @@ export default function TopBar() {
           <div className="hidden md:flex items-center space-x-1">
             <NavLink to="/menu" icon={null}>메뉴</NavLink>
             <NavLink to="/events" icon={<Gift className="w-4 h-4" />}>이벤트</NavLink>
+            <NavLink to="/reviews" icon={<MessageSquare className="w-4 h-4" />}>리뷰 게시판</NavLink>
             <NavLink to="/notices" icon={<Bell className="w-4 h-4" />}>공지사항</NavLink>
+            <NavLink to="/orders" icon={null}>내 주문</NavLink>
             <NavLink to="/cart" icon={<ShoppingCart className="w-4 h-4" />} badge={cartItemsCount}>
               장바구니
             </NavLink>
-            <NavLink to="/orders" icon={null}>내 주문</NavLink>
             <NavLink to="/mypage" icon={<User className="w-4 h-4" />}>마이페이지</NavLink>
             {isAdmin && (
               <NavLink to="/admin" icon={<Store className="w-4 h-4" />}>
@@ -584,11 +650,11 @@ export default function TopBar() {
             <MobileNavLink to="/notices" onClick={() => setMobileMenuOpen(false)}>
               공지사항
             </MobileNavLink>
-            <MobileNavLink to="/cart" onClick={() => setMobileMenuOpen(false)} badge={cartItemsCount}>
-              장바구니
-            </MobileNavLink>
             <MobileNavLink to="/orders" onClick={() => setMobileMenuOpen(false)}>
               내 주문
+            </MobileNavLink>
+            <MobileNavLink to="/cart" onClick={() => setMobileMenuOpen(false)} badge={cartItemsCount}>
+              장바구니
             </MobileNavLink>
             <MobileNavLink to="/mypage" onClick={() => setMobileMenuOpen(false)}>
               마이페이지
