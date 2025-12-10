@@ -12,6 +12,22 @@
 
 ---
 
+## Phase 0: ⚠️ 필수 계정 점검 (Mandatory Check)
+**배포 사고 방지를 위해 작업 시작 전 반드시 계정을 확인하세요.** (`docs/DEPLOYMENT_PREFLIGHT_CHECK.md` 참조)
+
+1.  **로그인 계정 확인**:
+    ```bash
+    firebase login
+    # -> "Already logged in as [올바른_계정]" 인지 확인!
+    ```
+2.  **프로젝트 권한 확인**:
+    ```bash
+    firebase projects:list
+    # -> 생성하려는(또는 배포하려는) 프로젝트 ID가 목록에 보여야 함.
+    ```
+
+---
+
 ## Phase 1: 리포지토리 및 프로젝트 생성 (Start)
 
 ### 1-1. 클라이언트용 리포지토리 생성

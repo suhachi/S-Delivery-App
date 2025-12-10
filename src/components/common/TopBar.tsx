@@ -93,6 +93,9 @@ export default function TopBar() {
             <MobileNavLink to="/events" onClick={() => setMobileMenuOpen(false)}>
               이벤트
             </MobileNavLink>
+            <MobileNavLink to="/reviews" onClick={() => setMobileMenuOpen(false)}>
+              리뷰 게시판
+            </MobileNavLink>
             <MobileNavLink to="/notices" onClick={() => setMobileMenuOpen(false)}>
               공지사항
             </MobileNavLink>
