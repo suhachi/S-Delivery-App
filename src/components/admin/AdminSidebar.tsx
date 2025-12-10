@@ -3,7 +3,11 @@ import { Link, useLocation } from 'react-router-dom';
 import { LayoutDashboard, UtensilsCrossed, Package, Ticket, Star, Bell, Calendar, Settings, Home } from 'lucide-react';
 import { useStore } from '../../contexts/StoreContext';
 
-export default function AdminSidebar() {
+interface AdminSidebarProps {
+  className?: string;
+}
+
+export default function AdminSidebar({ className = '' }: AdminSidebarProps) {
   const location = useLocation();
   const { store } = useStore();
 
@@ -26,7 +30,7 @@ export default function AdminSidebar() {
   };
 
   return (
-    <aside className="w-52 bg-white border-r border-gray-200 min-h-screen flex-shrink-0">
+    <aside className={`w-52 bg-white border-r border-gray-200 min-h-screen flex-shrink-0 ${className}`}>
       <div className="p-4">
         {/* 로고 영역 */}
         {/* 로고 영역 제거됨 */}

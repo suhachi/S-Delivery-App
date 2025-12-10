@@ -1,5 +1,5 @@
 /// <reference types="vite/client" />
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { MapPin, Phone, CreditCard, Wallet, DollarSign, ArrowLeft, CheckCircle2, ShoppingBag, Package, Ticket, X, Search } from 'lucide-react';
 import { useCart } from '../contexts/CartContext';
@@ -79,11 +79,13 @@ export default function CheckoutPage() {
     const isValidPeriod = validFrom <= now && validUntil >= now;
     const isValidAmount = itemsTotal >= minOrderAmount;
     const isNotUsed = !coupon.usedByUserIds?.includes(user?.id || '');
+    // 발급 대상 확인: 지정된 사용자가 없거나(전체 발급), 해당 사용자에게 지정된 경우
+    const isAssignedToUser = !coupon.assignedUserId || coupon.assignedUserId === user?.id;
 
     // 디버깅을 위해 로그 추가 (필요시 제거)
-    // console.log(`Coupon ${coupon.name}: Active=${coupon.isActive}, Period=${isValidPeriod}, Amount=${isValidAmount}`);
+    // console.log(`Coupon ${coupon.name}: Active=${coupon.isActive}, Period=${isValidPeriod}, Amount=${isValidAmount}, Assigned=${isAssignedToUser}`);
 
-    return coupon.isActive && isValidPeriod && isValidAmount && isNotUsed;
+    return coupon.isActive && isValidPeriod && isValidAmount && isNotUsed && isAssignedToUser;
   });
 
   // 쿠폰 할인 금액 계산
@@ -169,8 +171,8 @@ export default function CheckoutPage() {
         phone: formData.phone,
         memo: formData.memo,
         paymentType: formData.paymentType,
-        couponId: selectedCoupon?.id || null,
-        couponName: selectedCoupon?.name || null,
+        couponId: selectedCoupon?.id || undefined,
+        couponName: selectedCoupon?.name || undefined,
         adminDeleted: false,
         reviewed: false,
         paymentStatus: '결제대기' as const, // 결제 완료 여부와 별개

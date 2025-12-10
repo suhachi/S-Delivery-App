@@ -134,7 +134,7 @@ function AppContent() {
           <Route path="/store-setup" element={<RequireAuth requireAdmin><StoreSetupWizard /></RequireAuth>} />
         </Routes>
       </div>
-      <Toaster position="top-center" richColors />
+      <Toaster position="bottom-center" richColors duration={2000} />
     </CartProvider>
   );
 }

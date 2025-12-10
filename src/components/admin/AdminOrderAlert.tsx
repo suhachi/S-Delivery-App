@@ -42,24 +42,46 @@ export default function AdminOrderAlert() {
             const latestOrder = orders[0]; // 정렬이 최신순이라면
 
             // 알림음 재생 시도
+            // 알림음 반복 재생 설정
             if (audioRef.current) {
-                audioRef.current.currentTime = 0; // Rewind to start
-                const playPromise = audioRef.current.play();
+                audioRef.current.loop = true; // 반복 재생
+                audioRef.current.currentTime = 0;
 
+                const playPromise = audioRef.current.play();
                 if (playPromise !== undefined) {
                     playPromise.catch(error => {
-                        console.error('Audio playback failed (Autoplay blocked?):', error);
-                        // Fallback: Could show a persistent visual alert here if needed
+                        console.error('Audio playback failed:', error);
                     });
                 }
             }
 
+            // 지속적인 팝업 (확인 버튼 누를 때까지 유지)
             toast.message('새로운 주문이 도착했습니다! 🔔', {
                 description: `${latestOrder.items[0].name} 외 ${latestOrder.items.length - 1}건 (${latestOrder.totalPrice.toLocaleString()}원)`,
-                duration: 5000,
+                duration: Infinity, // 무한 지속
                 action: {
                     label: '확인',
-                    onClick: () => navigate('/admin/orders')
+                    onClick: () => {
+                        // 확인 버튼 클릭 시 소리 끄기 및 페이지 이동
+                        if (audioRef.current) {
+                            audioRef.current.pause();
+                            audioRef.current.currentTime = 0;
+                        }
+                        navigate('/admin/orders');
+                    }
+                },
+                // 닫기 버튼 등으로 닫혔을 때 소리 끄기 (Sonner API에 따라 동작 다를 수 있음. 안전장치)
+                onDismiss: () => {
+                    if (audioRef.current) {
+                        audioRef.current.pause();
+                        audioRef.current.currentTime = 0;
+                    }
+                },
+                onAutoClose: () => { // 혹시나 자동 닫힘 발생 시
+                    if (audioRef.current) {
+                        audioRef.current.pause();
+                        audioRef.current.currentTime = 0;
+                    }
                 }
             });
         }

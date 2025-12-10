@@ -51,6 +51,11 @@ export default function MyPage() {
   const couponsQuery = store?.id ? getActiveCouponsQuery(store.id) : null;
   const { data: availableCoupons, loading: couponsLoading } = useFirestoreCollection<Coupon>(couponsQuery);
 
+  // 사용한 쿠폰 필터링 (사용자 요청: 사용한 쿠폰은 숨김 처리)
+  const myCoupons = availableCoupons?.filter(coupon =>
+    !coupon.usedByUserIds?.includes(user?.id || '')
+  ) || [];
+
   const handleLogout = async () => {
     try {
       await logout();
@@ -139,7 +144,7 @@ export default function MyPage() {
               <Ticket className="w-5 h-5 text-orange-600" />
               <h2 className="text-lg">쿠폰함</h2>
               <span className="text-sm text-gray-500">
-                ({availableCoupons ? availableCoupons.length : 0}장)
+                ({myCoupons.length}장)
               </span>
             </div>
 
@@ -147,9 +152,9 @@ export default function MyPage() {
               <div className="text-center py-8 text-gray-500">
                 <p className="text-sm">로딩 중...</p>
               </div>
-            ) : (availableCoupons && availableCoupons.length > 0) ? (
+            ) : (myCoupons.length > 0) ? (
               <div className="space-y-2">
-                {availableCoupons.map((coupon) => (
+                {myCoupons.map((coupon) => (
                   <div
                     key={coupon.id}
                     className="flex justify-between items-center p-3 bg-gradient-to-r from-orange-50 to-red-50 border border-orange-200 rounded-lg"
