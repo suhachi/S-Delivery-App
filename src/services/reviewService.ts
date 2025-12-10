@@ -79,14 +79,25 @@ export async function deleteReview(
     const reviewRef = doc(db, 'stores', storeId, 'reviews', reviewId);
     await deleteDoc(reviewRef);
 
-    // 2. 주문 문서 리뷰 필드 초기화
-    const orderRef = doc(db, 'stores', storeId, 'orders', orderId);
-    await updateDoc(orderRef, {
-      reviewed: false,
-      reviewText: null,
-      reviewRating: null,
-      reviewedAt: null,
-    });
+    // 2. 주문 문서 리뷰 필드 초기화 (주문이 존재할 경우에만)
+    try {
+      const orderRef = doc(db, 'stores', storeId, 'orders', orderId);
+      await updateDoc(orderRef, {
+        reviewed: false,
+        reviewText: null,
+        reviewRating: null,
+        reviewedAt: null,
+      });
+    } catch (updateError: any) {
+      // 주문이 이미 삭제된 경우(No document to update)는 무시
+      if (updateError?.code === 'not-found' || updateError?.message?.includes('No document to update')) {
+        console.warn('주문 문서를 찾을 수 없어 리뷰 상태를 업데이트하지 못했습니다 (주문 삭제됨).', orderId);
+      } else {
+        // 다른 에러는 로깅하되, 리뷰 삭제 자체는 성공했으므로 상위로 전파하지 않음 (선택 사항)
+        // 상황에 따라 판단해야 하지만, 리뷰 삭제가 메인 의도이므로 경고만 남기겠습니다.
+        console.error('주문 문서 업데이트 중 오류 발생:', updateError);
+      }
+    }
   } catch (error) {
     console.error('리뷰 삭제 실패:', error);
     throw error;

@@ -87,5 +87,21 @@ describe('reviewService', () => {
                 reviewText: null,
             }));
         });
+
+        it('should handle missing order document gracefully (review deleted, order update skipped)', async () => {
+            (doc as any).mockReturnValue('MOCK_DOC_REF');
+
+            // updateDoc throws "No document to update"
+            (updateDoc as any).mockRejectedValueOnce(new Error('No document to update'));
+
+            const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => { });
+
+            await expect(deleteReview(mockStoreId, mockReviewId, mockOrderId)).resolves.not.toThrow();
+
+            expect(deleteDoc).toHaveBeenCalled(); // Review deleted
+            expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('주문 문서를 찾을 수 없어'), expect.anything());
+
+            consoleSpy.mockRestore();
+        });
     });
 });
