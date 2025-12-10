@@ -10,6 +10,7 @@ import { useStore } from '../../contexts/StoreContext';
 import { useFirestoreCollection } from '../../hooks/useFirestoreCollection';
 import { updateOrderStatus, deleteOrder, getAllOrdersQuery } from '../../services/orderService';
 import AdminOrderAlert from '../../components/admin/AdminOrderAlert';
+import { getNextStatus } from '../../utils/orderUtils';
 
 // 헬퍼 함수: Firestore Timestamp 처리를 위한 toDate
 function toDate(date: any): Date {
@@ -17,24 +18,6 @@ function toDate(date: any): Date {
   if (date instanceof Date) return date;
   if (typeof date === 'string') return new Date(date);
   return new Date();
-}
-
-// 헬퍼 함수: 다음 주문 상태 계산
-function getNextStatus(order: Order): OrderStatus | null {
-  const currentStatus = order.status;
-  const isPickup = order.orderType === '포장주문';
-
-  // 상태 흐름 정의
-  const deliveryFlow: OrderStatus[] = ['접수', '접수완료', '조리중', '배달중', '완료'];
-  const pickupFlow: OrderStatus[] = ['접수', '접수완료', '조리중', '조리완료', '포장완료'];
-
-  const statusFlow = isPickup ? pickupFlow : deliveryFlow;
-  const currentIndex = statusFlow.indexOf(currentStatus);
-
-  if (currentIndex >= 0 && currentIndex < statusFlow.length - 1) {
-    return statusFlow[currentIndex + 1];
-  }
-  return null;
 }
 
 import Receipt from '../../components/admin/Receipt';

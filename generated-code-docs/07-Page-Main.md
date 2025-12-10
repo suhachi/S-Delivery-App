@@ -1,6 +1,6 @@
 ﻿# 07-Page-Main
 
-Generated: 2025-12-10 02:47:47
+Generated: 2025-12-10 14:27:34
 
 ---
 
@@ -256,7 +256,7 @@ function CartItem({ item, onRemove, onUpdateQuantity }: CartItemProps) {
 
 ```typescript
 /// <reference types="vite/client" />
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { MapPin, Phone, CreditCard, Wallet, DollarSign, ArrowLeft, CheckCircle2, ShoppingBag, Package, Ticket, X, Search } from 'lucide-react';
 import { useCart } from '../contexts/CartContext';
@@ -336,11 +336,13 @@ export default function CheckoutPage() {
     const isValidPeriod = validFrom <= now && validUntil >= now;
     const isValidAmount = itemsTotal >= minOrderAmount;
     const isNotUsed = !coupon.usedByUserIds?.includes(user?.id || '');
+    // 발급 대상 확인: 지정된 사용자가 없거나(전체 발급), 해당 사용자에게 지정된 경우
+    const isAssignedToUser = !coupon.assignedUserId || coupon.assignedUserId === user?.id;
 
     // 디버깅을 위해 로그 추가 (필요시 제거)
-    // console.log(`Coupon ${coupon.name}: Active=${coupon.isActive}, Period=${isValidPeriod}, Amount=${isValidAmount}`);
+    // console.log(`Coupon ${coupon.name}: Active=${coupon.isActive}, Period=${isValidPeriod}, Amount=${isValidAmount}, Assigned=${isAssignedToUser}`);
 
-    return coupon.isActive && isValidPeriod && isValidAmount && isNotUsed;
+    return coupon.isActive && isValidPeriod && isValidAmount && isNotUsed && isAssignedToUser;
   });
 
   // 쿠폰 할인 금액 계산
@@ -426,8 +428,8 @@ export default function CheckoutPage() {
         phone: formData.phone,
         memo: formData.memo,
         paymentType: formData.paymentType,
-        couponId: selectedCoupon?.id || null,
-        couponName: selectedCoupon?.name || null,
+        couponId: selectedCoupon?.id || undefined,
+        couponName: selectedCoupon?.name || undefined,
         adminDeleted: false,
         reviewed: false,
         paymentStatus: '결제대기' as const, // 결제 완료 여부와 별개
@@ -1222,6 +1224,11 @@ export default function MyPage() {
   const couponsQuery = store?.id ? getActiveCouponsQuery(store.id) : null;
   const { data: availableCoupons, loading: couponsLoading } = useFirestoreCollection<Coupon>(couponsQuery);
 
+  // 사용한 쿠폰 필터링 (사용자 요청: 사용한 쿠폰은 숨김 처리)
+  const myCoupons = availableCoupons?.filter(coupon =>
+    !coupon.usedByUserIds?.includes(user?.id || '')
+  ) || [];
+
   const handleLogout = async () => {
     try {
       await logout();
@@ -1310,7 +1317,7 @@ export default function MyPage() {
               <Ticket className="w-5 h-5 text-orange-600" />
               <h2 className="text-lg">쿠폰함</h2>
               <span className="text-sm text-gray-500">
-                ({availableCoupons ? availableCoupons.length : 0}장)
+                ({myCoupons.length}장)
               </span>
             </div>
 
@@ -1318,9 +1325,9 @@ export default function MyPage() {
               <div className="text-center py-8 text-gray-500">
                 <p className="text-sm">로딩 중...</p>
               </div>
-            ) : (availableCoupons && availableCoupons.length > 0) ? (
+            ) : (myCoupons.length > 0) ? (
               <div className="space-y-2">
-                {availableCoupons.map((coupon) => (
+                {myCoupons.map((coupon) => (
                   <div
                     key={coupon.id}
                     className="flex justify-between items-center p-3 bg-gradient-to-r from-orange-50 to-red-50 border border-orange-200 rounded-lg"
@@ -2060,7 +2067,7 @@ function OrderCard({ order, onClick, getDisplayStatus }: { order: Order; onClick
 ```typescript
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { Mail, Lock, User as UserIcon, ArrowRight, CheckCircle2 } from 'lucide-react';
+import { Mail, Lock, User as UserIcon, ArrowRight, CheckCircle2, Phone } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { toast } from 'sonner';
 import Button from '../components/common/Button';

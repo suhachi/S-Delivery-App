@@ -1,6 +1,6 @@
 ﻿# 08-Page-Admin
 
-Generated: 2025-12-10 02:47:48
+Generated: 2025-12-10 14:27:34
 
 ---
 
@@ -2134,10 +2134,13 @@ function getNextStatus(order: Order): OrderStatus | null {
   return null;
 }
 
+import Receipt from '../../components/admin/Receipt';
+
 export default function AdminOrderManagement() {
   const { store } = useStore();
   const [filter, setFilter] = useState<OrderStatus | '전체'>('전체');
   const [expandedOrder, setExpandedOrder] = useState<string | null>(null);
+  const [printOrder, setPrintOrder] = useState<Order | null>(null);
 
   // Firestore에서 주문 조회 (삭제되지 않은 주문만)
   const { data: allOrders } = useFirestoreCollection<Order>(
@@ -2151,17 +2154,73 @@ export default function AdminOrderManagement() {
   // 필터 순서 업데이트 (조리완료, 포장완료 추가)
   const filters: (OrderStatus | '전체')[] = ['전체', '접수', '접수완료', '조리중', '조리완료', '배달중', '포장완료', '완료', '취소'];
 
+  // 인쇄를 위한 Effect Hooks (상태 변경 감지 후 실행)
+  useEffect(() => {
+    if (printOrder) {
+      // 1. 현재 타이틀 저장
+      const originalTitle = document.title;
+
+      // 2. 파일명 생성을 위한 날짜 포맷팅 (YYYYMMDD_HHmm_OrderID)
+      // Firestore Timestamp vs Date 객체 호환 처리
+      const createdAt = printOrder.createdAt as any;
+      let d = createdAt?.toDate ? createdAt.toDate() : new Date(createdAt);
+
+      // Date 객체가 유효하지 않은 경우 현재 시간으로 대체
+      if (isNaN(d.getTime())) {
+        d = new Date();
+      }
+
+      const dateStr = d.getFullYear() +
+        String(d.getMonth() + 1).padStart(2, '0') +
+        String(d.getDate()).padStart(2, '0') + '_' +
+        String(d.getHours()).padStart(2, '0') +
+        String(d.getMinutes()).padStart(2, '0');
+
+      // 안전한 파일명 생성 (특수문자 제거)
+      const safeId = (printOrder.id || 'unknown').slice(0, 8).replace(/[^a-zA-Z0-9]/g, '');
+      const newTitle = `${dateStr}_${safeId}`;
+
+      document.title = newTitle;
+      console.log('Printing with title:', newTitle); // 디버깅용
+
+      // 3. 인쇄 실행
+      // 브라우저 인쇄가 끝나면(취소 혹은 출력) 실행될 핸들러
+      const handleAfterPrint = () => {
+        document.title = originalTitle;
+        setPrintOrder(null); // 상태 초기화
+        window.removeEventListener('afterprint', handleAfterPrint);
+      };
+
+      window.addEventListener('afterprint', handleAfterPrint);
+
+      // 렌더링 확보를 위한 짧은 지연 후 인쇄
+      const printTimer = setTimeout(() => {
+        window.print();
+      }, 500);
+
+      // 컴포넌트 언마운트 시 안전장치
+      return () => {
+        clearTimeout(printTimer);
+        window.removeEventListener('afterprint', handleAfterPrint);
+        document.title = originalTitle; // 혹시 모를 상황 대비 복구
+      };
+    }
+  }, [printOrder]);
+
   const handleStatusChange = async (orderId: string, newStatus: OrderStatus) => {
     if (!store?.id) return;
     try {
       await updateOrderStatus(store.id, orderId, newStatus);
       toast.success(`주문 상태가 '${ORDER_STATUS_LABELS[newStatus]}'(으)로 변경되었습니다`);
 
-      // 주문 접수(확인) 시 영수증 자동 출력 (시뮬레이션)
+      // 주문 접수(확인) 시 영수증 자동 출력
+      // 2024-12-10: 사용자 요청으로 자동 출력 기능 다시 활성화
       if (newStatus === '접수완료') {
-        setTimeout(() => {
-          window.print();
-        }, 500); // UI 업데이트 후 출력
+        const targetOrder = allOrders?.find(o => o.id === orderId);
+        if (targetOrder) {
+          // 인쇄용 상태 업데이트 -> useEffect 트리거
+          setPrintOrder(targetOrder);
+        }
       }
 
     } catch (error: any) {
@@ -2189,10 +2248,12 @@ export default function AdminOrderManagement() {
 
   return (
     <div className="flex min-h-screen bg-gray-50">
-      <AdminSidebar />
+      <AdminSidebar className="print:hidden" />
 
+      {/* 영수증 컴포넌트 (평소엔 숨김, 인쇄 시에만 등장) */}
+      <Receipt order={printOrder} store={store} />
 
-      <main className="flex-1 p-8">
+      <main className="flex-1 p-8 print:hidden">
         <div className="max-w-7xl mx-auto">
           {/* Header */}
           <div className="mb-8">
@@ -2237,6 +2298,7 @@ export default function AdminOrderManagement() {
                   onToggleExpand={() => setExpandedOrder(expandedOrder === order.id ? null : order.id)}
                   onStatusChange={handleStatusChange}
                   onDelete={handleDelete}
+                  onPrint={() => setPrintOrder(order)}
                 />
               ))
             ) : (
@@ -2258,12 +2320,14 @@ interface OrderCardProps {
   onToggleExpand: () => void;
   onStatusChange: (orderId: string, newStatus: OrderStatus) => void;
   onDelete: (orderId: string) => void;
+  onPrint: () => void;
 }
 
-function OrderCard({ order, isExpanded, onToggleExpand, onStatusChange, onDelete }: OrderCardProps) {
+function OrderCard({ order, isExpanded, onToggleExpand, onStatusChange, onDelete, onPrint }: OrderCardProps) {
   const statusColor = ORDER_STATUS_COLORS[order.status as OrderStatus];
   // getNextStatus 업데이트 (order 객체 전달)
   const nextStatus = getNextStatus(order);
+  const [Printer] = useState(() => import('lucide-react').then(mod => mod.Printer)); // Dynamic import or just use lucide-react if already imported
 
   return (
     <Card padding="none" className="overflow-hidden">
@@ -2376,35 +2440,53 @@ function OrderCard({ order, isExpanded, onToggleExpand, onStatusChange, onDelete
           </div>
 
           {/* Status Actions */}
-          {order.status !== '완료' && order.status !== '취소' && order.status !== '포장완료' && (
-            <div className="pt-4 border-t border-gray-200">
-              <h4 className="font-semibold text-gray-900 mb-3">주문 상태 변경</h4>
-              <div className="flex gap-2">
-                {nextStatus && (
-                  <Button
-                    onClick={() => onStatusChange(order.id, nextStatus)}
-                  >
-                    다음 단계로 ({ORDER_STATUS_LABELS[nextStatus]})
-                  </Button>
+          <div className="pt-4 border-t border-gray-200">
+            <div className="flex items-center justify-between">
+              <div>
+                {order.status !== '완료' && order.status !== '취소' && order.status !== '포장완료' && (
+                  <>
+                    <h4 className="font-semibold text-gray-900 mb-3">주문 상태 변경</h4>
+                    <div className="flex gap-2">
+                      {nextStatus && (
+                        <Button
+                          onClick={() => onStatusChange(order.id, nextStatus)}
+                        >
+                          다음 단계로 ({ORDER_STATUS_LABELS[nextStatus]})
+                        </Button>
+                      )}
+
+                      <Button
+                        variant="danger"
+                        onClick={() => {
+                          if (window.confirm('주문을 취소하시겠습니까?')) {
+                            onStatusChange(order.id, '취소');
+                          }
+                        }}
+                      >
+                        취소
+                      </Button>
+                    </div>
+                  </>
                 )}
-                {/* Manual Status Buttons (Optional but kept for flexibility) */}
-                <div className="hidden sm:flex gap-2 border-l pl-2 ml-2 border-gray-300">
-                  {/* Can expand if needed */}
-                </div>
+              </div>
+
+              {/* 영수증 인쇄 버튼 (항상 표시 or 특정 상태에서만? 사용자는 그냥 '추가'라고 함) */}
+              <div className="flex items-end">
                 <Button
-                  variant="danger"
-                  onClick={() => {
-                    if (window.confirm('주문을 취소하시겠습니까?')) {
-                      onStatusChange(order.id, '취소');
-                    }
+                  variant="outline"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onPrint();
                   }}
-                  className="ml-auto"
+                  className="flex items-center gap-2"
                 >
-                  취소
+                  {/* 아이콘은 상단 import 사용 */}
+                  <span>🖨️ 영수증 인쇄</span>
                 </Button>
               </div>
             </div>
-          )}
+          </div>
+
           {/* Delete Button for Completed/Cancelled Orders */}
           {(order.status === '완료' || order.status === '취소' || order.status === '포장완료') && (
             <div className="pt-4 border-t border-gray-200 text-right">
