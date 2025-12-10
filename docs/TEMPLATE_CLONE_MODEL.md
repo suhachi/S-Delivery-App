@@ -44,6 +44,11 @@ Firebase 콘솔, 코드 수정, 배포 작업은 모두 KS가 담당한다.
 - `functions:config` (백엔드):
   - `nicepay.secret_key` (점주별 Secret Key)
 
+### 결제/PG 전략 (중요)
+- **템플릿 프로젝트**: 결제 기능 **OFF** (키 미설정). 코드/구조 레퍼런스용.
+- **Demo 프로젝트**: **Sandbox Key** 설정 (테스트/시연용).
+- **Client 프로젝트**: **Real Key** 설정 (실서비스용).
+
 ### 함수/엔드포인트 이름 표준화
 예: `/nicepayConfirm`, `/api/admin/...` 등
 엔드포인트 경로를 템플릿에서 고정해 두고, 복제본에서도 동일한 경로를 사용한다.
@@ -57,7 +62,7 @@ Firebase 콘솔, 코드 수정, 배포 작업은 모두 KS가 담당한다.
    - `projects.default = <새 Firebase 프로젝트 ID>`
 3. `.env` 템플릿 생성
    - `VITE_FIREBASE_*` 를 새 Firebase 프로젝트의 config로 교체
-   - `VITE_NICEPAY_CLIENT_ID` 는 초기에는 비워두거나 sandbox 키 사용
+   - `VITE_NICEPAY_CLIENT_ID` 는 초기에는 비워두거나(템플릿 기본값) sandbox 키 사용
 4. Firebase 프로젝트 생성 후 연결
    - Firestore / Auth / Storage 활성화
    - `firebase init` 관련 설정은 템플릿과 동일하게 유지
@@ -142,6 +147,11 @@ AI(안티그래비티, Cursor, Copilot 등)가 이 프로젝트에서 자동 작
 4. **점주는 코드/배포를 건드리지 않는다**
    - AI는 점주가 코드/환경변수/Rules를 직접 수정한다고 가정하지 않는다.
    - 자동화 스크립트/프롬프트는 항상 “KS 개발자용”으로 설계한다.
+
+5. **템플릿 프로젝트에서는 결제 키를 설정하지 않는다**
+   - 템플릿 Firebase 프로젝트에서는 `VITE_NICEPAY_CLIENT_ID`와 `functions:config nicepay.secret_key`를 설정하지 않고 **결제 OFF 상태**로 유지한다.
+   - Demo 또는 Client 용 리포지토리/프로젝트에서만 해당 키들을 설정하고 결제 기능을 활성화한다.
+   - AI 도구는 템플릿 리포/프로젝트에서 PG 키를 생성·수정하는 작업을 수행하지 않는다.
 
 ## 5. AI 작업 프롬프트 템플릿 (안티그래비티/커서/코파일럿 공용)
 

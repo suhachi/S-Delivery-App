@@ -52,6 +52,9 @@ KS 단일 상점 배달앱은 소규모 요식업을 위해 최적화된 **주�
 - **Backend (`functions:config`):**
   - `nicepay.secret_key`: PG Secret Key
 
+> **Note:** 템플릿 레퍼런스 프로젝트에서는 **결제 기능을 OFF** (키 미설정) 상태로 유지합니다. 
+> Demo 또는 Client 프로젝트에서만 실제/샌드박스 키를 설정하십시오.
+
 ### Deployment Commands
 ```bash
 # 1. 의존성 설치
@@ -70,8 +73,10 @@ firebase deploy --only hosting,functions
 
 1. **Clone:** 템플릿 리포지토리 복제 (`shop-[name]`)
 2. **Connect:** 새 Firebase 프로젝트 생성 및 연결 (`.firebaserc`, `.env`)
-3. **Setup:** 나이스페이 키 설정 및 Security Rules 배포
+3. **Setup:** 나이스페이 키 설정(Demo/Client만) 및 Security Rules 배포
 4. **Init:** 관리자 최초 접속 후 "상점 설정 마법사"를 통해 기초 데이터 생성
+
+> **전략:** 템플릿(결제OFF) → Demo(Sandbox) → Client(Real Envs) 분리 전략을 따릅니다.
 
 상세 체크리스트는 `docs/CLIENT_ONBOARDING_CHECKLIST.md`를 참고하십시오.
 
