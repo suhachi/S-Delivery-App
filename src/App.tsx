@@ -81,6 +81,15 @@ function AppContent() {
     }
   }, [store?.primaryColor]);
 
+  // 상점 이름으로 타이틀 변경
+  React.useEffect(() => {
+    if (store?.name) {
+      document.title = store.name;
+    } else {
+      document.title = 'Simple Delivery App';
+    }
+  }, [store?.name]);
+
   // 디버깅: 로딩 상태 확인
   if (authLoading || storeLoading) {
     return (

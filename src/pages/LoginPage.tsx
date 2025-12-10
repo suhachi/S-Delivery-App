@@ -51,17 +51,6 @@ export default function LoginPage() {
     }
   };
 
-  // Demo account info
-  const fillDemoAccount = () => {
-    setEmail('user@demo.com');
-    setPassword('demo123');
-  };
-
-  const fillAdminAccount = () => {
-    setEmail('admin@demo.com');
-    setPassword('admin123');
-  };
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-orange-50 flex items-center justify-center px-4 py-12">
       <div className="w-full max-w-md">
@@ -118,28 +107,6 @@ export default function LoginPage() {
               )}
             </Button>
           </form>
-
-          {/* Demo Accounts */}
-          <div className="mt-6 p-4 bg-blue-50 rounded-xl border border-blue-100">
-            <p className="text-sm text-blue-900 mb-3 flex items-center">
-              <span className="mr-2">💡</span>
-              데모 계정으로 빠르게 체험하기
-            </p>
-            <div className="flex gap-2">
-              <button
-                onClick={fillDemoAccount}
-                className="flex-1 px-3 py-2 text-sm bg-white border border-blue-200 text-blue-600 rounded-lg hover:bg-blue-50 transition-colors"
-              >
-                일반 사용자
-              </button>
-              <button
-                onClick={fillAdminAccount}
-                className="flex-1 px-3 py-2 text-sm bg-white border border-orange-200 text-orange-600 rounded-lg hover:bg-orange-50 transition-colors"
-              >
-                관리자
-              </button>
-            </div>
-          </div>
 
           {/* Sign Up Link */}
           <div className="mt-6 text-center">
