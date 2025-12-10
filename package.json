@@ -76,9 +76,10 @@
         "firebase:login": "firebase login",
         "test": "vitest",
         "test:ui": "vitest --ui",
-        "firebase:deploy": "firebase deploy",
-        "firebase:deploy:hosting": "firebase deploy --only hosting",
-        "firebase:deploy:firestore": "firebase deploy --only firestore:rules,firestore:indexes",
-        "firebase:deploy:storage": "firebase deploy --only storage"
+        "predeploy": "node scripts/check-deploy.mjs",
+        "firebase:deploy": "npm run predeploy && firebase deploy",
+        "firebase:deploy:hosting": "npm run predeploy && firebase deploy --only hosting",
+        "firebase:deploy:firestore": "npm run predeploy && firebase deploy --only firestore:rules,firestore:indexes",
+        "firebase:deploy:storage": "npm run predeploy && firebase deploy --only storage"
     }
 }
