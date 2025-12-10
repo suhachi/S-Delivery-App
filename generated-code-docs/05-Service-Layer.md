@@ -1,6 +1,83 @@
 ﻿# 05-Service-Layer
 
-Generated: 2025-12-10 14:27:34
+Generated: 2025-12-10 16:23:01
+
+---
+
+## File: src\services\couponService.test.ts
+
+```typescript
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { validateCoupon } from './couponService';
+
+// Mock dependencies
+vi.mock('../lib/firebase', () => ({
+    db: {},
+}));
+
+describe('couponService', () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
+
+    describe('validateCoupon', () => {
+        it('should return valid if conditions met', () => {
+            const coupon = {
+                code: 'TEST',
+                discountAmount: 1000,
+                minOrderAmount: 10000,
+                validUntil: { toDate: () => new Date('2099-12-31') }, // Future
+                isActive: true,
+                usedByUserIds: []
+            };
+
+            const result = validateCoupon(coupon as any, 15000, 'user1');
+            expect(result.isValid).toBe(true);
+        });
+
+        it('should fail if order amount is too low', () => {
+            const coupon = {
+                code: 'TEST',
+                minOrderAmount: 10000,
+                validUntil: { toDate: () => new Date('2099-12-31') },
+                isActive: true,
+                usedByUserIds: []
+            };
+            // 5000 < 10000
+            const result = validateCoupon(coupon as any, 5000, 'user1');
+            expect(result.isValid).toBe(false);
+            expect(result.reason).toContain('최소 주문 금액');
+        });
+
+        it('should fail if expired', () => {
+            const coupon = {
+                code: 'TEST',
+                minOrderAmount: 0,
+                validUntil: { toDate: () => new Date('2020-01-01') }, // Past
+                isActive: true,
+                usedByUserIds: []
+            };
+            const result = validateCoupon(coupon as any, 10000, 'user1');
+            expect(result.isValid).toBe(false);
+            expect(result.reason).toContain('유효기간');
+        });
+
+        it('should fail if already used by user', () => {
+            const coupon = {
+                code: 'TEST',
+                minOrderAmount: 0,
+                validUntil: { toDate: () => new Date('2099-12-31') },
+                isActive: true,
+                usedByUserIds: ['user1'] // Used
+            };
+            const result = validateCoupon(coupon as any, 10000, 'user1');
+            expect(result.isValid).toBe(false);
+            expect(result.reason).toContain('이미 사용');
+        });
+    });
+});
+
+```
 
 ---
 
@@ -247,6 +324,112 @@ export function getActiveEventsQuery(storeId: string) {
 
 ---
 
+## File: src\services\menuService.test.ts
+
+```typescript
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { createMenu, updateMenu, deleteMenu, toggleMenuSoldout } from './menuService';
+import { collection, addDoc, updateDoc, deleteDoc, doc, serverTimestamp } from 'firebase/firestore';
+
+// Mock dependencies
+vi.mock('../lib/firebase', () => ({
+    db: {},
+}));
+
+vi.mock('firebase/firestore', async () => {
+    const actual = await vi.importActual('firebase/firestore');
+    return {
+        ...actual,
+        collection: vi.fn(),
+        addDoc: vi.fn(),
+        updateDoc: vi.fn(),
+        deleteDoc: vi.fn(),
+        doc: vi.fn(),
+        serverTimestamp: vi.fn(() => 'MOCK_TIMESTAMP'),
+        query: vi.fn(),
+        where: vi.fn(),
+        orderBy: vi.fn(),
+    };
+});
+
+describe('menuService', () => {
+    const mockStoreId = 'store_123';
+    const mockMenuId = 'menu_xyz';
+
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
+
+    describe('createMenu', () => {
+        it('should create menu with timestamp', async () => {
+            const mockDocRef = { id: 'new_menu_id' };
+            (addDoc as any).mockResolvedValue(mockDocRef);
+            (collection as any).mockReturnValue('MOCK_COLLECTION_REF');
+
+            const menuData = {
+                name: 'Pho',
+                price: 10000,
+                category: ['Noodle'], // Correct as string[]
+                description: 'Delicious',
+                imageUrl: 'http://example.com/img.jpg',
+                isBest: true,
+                soldout: false,
+                options: []
+            };
+
+            const result = await createMenu(mockStoreId, menuData);
+
+            expect(collection).toHaveBeenCalledWith(expect.anything(), 'stores', mockStoreId, 'menus');
+            expect(addDoc).toHaveBeenCalledWith('MOCK_COLLECTION_REF', {
+                ...menuData,
+                createdAt: 'MOCK_TIMESTAMP',
+            });
+            expect(result).toBe('new_menu_id');
+        });
+    });
+
+    describe('updateMenu', () => {
+        it('should update menu fields and timestamp', async () => {
+            (doc as any).mockReturnValue('MOCK_DOC_REF');
+
+            await updateMenu(mockStoreId, mockMenuId, { price: 12000 });
+
+            expect(doc).toHaveBeenCalledWith(expect.anything(), 'stores', mockStoreId, 'menus', mockMenuId);
+            expect(updateDoc).toHaveBeenCalledWith('MOCK_DOC_REF', {
+                price: 12000,
+                updatedAt: 'MOCK_TIMESTAMP',
+            });
+        });
+    });
+
+    describe('deleteMenu', () => {
+        it('should delete menu document', async () => {
+            (doc as any).mockReturnValue('MOCK_DOC_REF');
+
+            await deleteMenu(mockStoreId, mockMenuId);
+
+            expect(deleteDoc).toHaveBeenCalledWith('MOCK_DOC_REF');
+        });
+    });
+
+    describe('toggleMenuSoldout', () => {
+        it('should update soldout status and timestamp', async () => {
+            (doc as any).mockReturnValue('MOCK_DOC_REF');
+
+            await toggleMenuSoldout(mockStoreId, mockMenuId, true);
+
+            expect(updateDoc).toHaveBeenCalledWith('MOCK_DOC_REF', {
+                soldout: true,
+                updatedAt: 'MOCK_TIMESTAMP',
+            });
+        });
+    });
+});
+
+```
+
+---
+
 ## File: src\services\menuService.ts
 
 ```typescript
@@ -473,6 +656,131 @@ export function getPinnedNoticesQuery(storeId: string) {
 
 ---
 
+## File: src\services\orderService.test.ts
+
+```typescript
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { createOrder, updateOrderStatus, cancelOrder, deleteOrder } from './orderService';
+import { collection, addDoc, updateDoc, doc, serverTimestamp, deleteDoc } from 'firebase/firestore';
+
+// Mock dependencies
+vi.mock('../lib/firebase', () => ({
+    db: {},
+}));
+
+vi.mock('firebase/firestore', async () => {
+    const actual = await vi.importActual('firebase/firestore');
+    return {
+        ...actual,
+        collection: vi.fn(),
+        addDoc: vi.fn(),
+        updateDoc: vi.fn(),
+        deleteDoc: vi.fn(),
+        doc: vi.fn(),
+        serverTimestamp: vi.fn(() => 'MOCK_TIMESTAMP'),
+        query: vi.fn(),
+        where: vi.fn(),
+        orderBy: vi.fn(),
+    };
+});
+
+describe('orderService', () => {
+    const mockStoreId = 'store_123';
+    const mockOrderId = 'order_abc';
+
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
+
+    describe('createOrder', () => {
+        it('should create an order with default status "접수"', async () => {
+            const mockDocRef = { id: 'new_order_id' };
+            (addDoc as any).mockResolvedValue(mockDocRef);
+            (collection as any).mockReturnValue('MOCK_COLLECTION_REF');
+
+            const orderData = {
+                userId: 'user_1',
+                items: [],
+                totalPrice: 10000,
+                paymentType: 'card',
+                address: 'Seoul',
+                phone: '010-0000-0000'
+            };
+
+            const result = await createOrder(mockStoreId, orderData as any);
+
+            expect(collection).toHaveBeenCalledWith(expect.anything(), 'stores', mockStoreId, 'orders');
+            expect(addDoc).toHaveBeenCalledWith('MOCK_COLLECTION_REF', expect.objectContaining({
+                ...orderData,
+                status: '접수',
+                createdAt: 'MOCK_TIMESTAMP',
+                updatedAt: 'MOCK_TIMESTAMP',
+            }));
+            expect(result).toBe('new_order_id');
+        });
+
+        it('should use provided status if given', async () => {
+            const mockDocRef = { id: 'new_order_id' };
+            (addDoc as any).mockResolvedValue(mockDocRef);
+
+            const orderData = {
+                status: '조리중',
+                totalPrice: 10000,
+            };
+
+            await createOrder(mockStoreId, orderData as any);
+
+            expect(addDoc).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({
+                status: '조리중',
+            }));
+        });
+    });
+
+    describe('updateOrderStatus', () => {
+        it('should update order status and timestamp', async () => {
+            (doc as any).mockReturnValue('MOCK_DOC_REF');
+
+            await updateOrderStatus(mockStoreId, mockOrderId, '배달중');
+
+            expect(doc).toHaveBeenCalledWith(expect.anything(), 'stores', mockStoreId, 'orders', mockOrderId);
+            expect(updateDoc).toHaveBeenCalledWith('MOCK_DOC_REF', {
+                status: '배달중',
+                updatedAt: 'MOCK_TIMESTAMP',
+            });
+        });
+    });
+
+    describe('cancelOrder', () => {
+        it('should set status to "취소"', async () => {
+            (doc as any).mockReturnValue('MOCK_DOC_REF');
+
+            await cancelOrder(mockStoreId, mockOrderId);
+
+            expect(updateDoc).toHaveBeenCalledWith('MOCK_DOC_REF', {
+                status: '취소',
+                updatedAt: 'MOCK_TIMESTAMP',
+            });
+        });
+    });
+
+    describe('deleteOrder', () => {
+        it('should delete the order document', async () => {
+            (doc as any).mockReturnValue('MOCK_DOC_REF');
+            // deleteOrder 내부의 dynamic import도 결국 mocks를 사용할 것으로 예상됨
+            // 하지만 테스트 환경에 따라 모킹 방식이 다를 수 있음.
+            // 여기서는 vi.mock이 top-level이므로 dynamic import도 모킹된 버전을 받을 것임.
+
+            await deleteOrder(mockStoreId, mockOrderId);
+
+            expect(deleteDoc).toHaveBeenCalledWith('MOCK_DOC_REF');
+        });
+    });
+});
+
+```
+
+---
+
 ## File: src\services\orderService.ts
 
 ```typescript
@@ -575,6 +883,121 @@ export function getOrdersByStatusQuery(storeId: string, status: OrderStatus) {
 
 ---
 
+## File: src\services\reviewService.test.ts
+
+```typescript
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { createReview, deleteReview } from './reviewService';
+import { collection, addDoc, updateDoc, deleteDoc, doc } from 'firebase/firestore';
+
+// Mock dependencies
+vi.mock('../lib/firebase', () => ({
+    db: {},
+}));
+
+vi.mock('firebase/firestore', async () => {
+    const actual = await vi.importActual('firebase/firestore');
+    return {
+        ...actual,
+        collection: vi.fn(),
+        addDoc: vi.fn(),
+        updateDoc: vi.fn(),
+        deleteDoc: vi.fn(),
+        doc: vi.fn(),
+        serverTimestamp: vi.fn(() => 'MOCK_TIMESTAMP'),
+        query: vi.fn(),
+        where: vi.fn(),
+        orderBy: vi.fn(),
+        getDocs: vi.fn(),
+    };
+});
+
+describe('reviewService', () => {
+    const mockStoreId = 'store_123';
+    const mockOrderId = 'order_abc';
+    const mockReviewId = 'review_xyz';
+    const mockUserId = 'user_1';
+
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
+
+    describe('createReview', () => {
+        it('should create review and update order status', async () => {
+            const mockDocRef = { id: 'new_review_id' };
+            (addDoc as any).mockResolvedValue(mockDocRef);
+            (collection as any).mockReturnValue('MOCK_COLLECTION_REF');
+            (doc as any).mockReturnValue('MOCK_DOC_REF');
+
+            const reviewData = {
+                storeId: mockStoreId,
+                orderId: mockOrderId,
+                userId: mockUserId,
+                userName: 'User',
+                rating: 5,
+                comment: 'Great!',
+                images: [],
+            };
+
+            const result = await createReview(mockStoreId, reviewData);
+
+            // 1. Review creation
+            expect(collection).toHaveBeenCalledWith(expect.anything(), 'stores', mockStoreId, 'reviews');
+            expect(addDoc).toHaveBeenCalledWith('MOCK_COLLECTION_REF', expect.objectContaining({
+                ...reviewData,
+                createdAt: 'MOCK_TIMESTAMP',
+            }));
+
+            // 2. Order update (reviewed: true)
+            expect(doc).toHaveBeenCalledWith(expect.anything(), 'stores', mockStoreId, 'orders', mockOrderId);
+            expect(updateDoc).toHaveBeenCalledWith('MOCK_DOC_REF', expect.objectContaining({
+                reviewed: true,
+                reviewText: 'Great!',
+                reviewedAt: 'MOCK_TIMESTAMP',
+            }));
+
+            expect(result).toBe('new_review_id');
+        });
+    });
+
+    describe('deleteReview', () => {
+        it('should delete review and reset order status', async () => {
+            (doc as any).mockReturnValue('MOCK_DOC_REF');
+
+            await deleteReview(mockStoreId, mockReviewId, mockOrderId);
+
+            // 1. Review delete
+            expect(deleteDoc).toHaveBeenCalledWith('MOCK_DOC_REF');
+
+            // 2. Order update (reviewed: false)
+            expect(updateDoc).toHaveBeenCalledWith('MOCK_DOC_REF', expect.objectContaining({
+                reviewed: false,
+                reviewText: null,
+            }));
+        });
+
+        it('should handle missing order document gracefully (review deleted, order update skipped)', async () => {
+            (doc as any).mockReturnValue('MOCK_DOC_REF');
+
+            // updateDoc throws "No document to update"
+            (updateDoc as any).mockRejectedValueOnce(new Error('No document to update'));
+
+            const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => { });
+
+            await expect(deleteReview(mockStoreId, mockReviewId, mockOrderId)).resolves.not.toThrow();
+
+            expect(deleteDoc).toHaveBeenCalled(); // Review deleted
+            expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('주문 문서를 찾을 수 없어'), expect.anything());
+
+            consoleSpy.mockRestore();
+        });
+    });
+});
+
+```
+
+---
+
 ## File: src\services\reviewService.ts
 
 ```typescript
@@ -659,14 +1082,25 @@ export async function deleteReview(
     const reviewRef = doc(db, 'stores', storeId, 'reviews', reviewId);
     await deleteDoc(reviewRef);
 
-    // 2. 주문 문서 리뷰 필드 초기화
-    const orderRef = doc(db, 'stores', storeId, 'orders', orderId);
-    await updateDoc(orderRef, {
-      reviewed: false,
-      reviewText: null,
-      reviewRating: null,
-      reviewedAt: null,
-    });
+    // 2. 주문 문서 리뷰 필드 초기화 (주문이 존재할 경우에만)
+    try {
+      const orderRef = doc(db, 'stores', storeId, 'orders', orderId);
+      await updateDoc(orderRef, {
+        reviewed: false,
+        reviewText: null,
+        reviewRating: null,
+        reviewedAt: null,
+      });
+    } catch (updateError: any) {
+      // 주문이 이미 삭제된 경우(No document to update)는 무시
+      if (updateError?.code === 'not-found' || updateError?.message?.includes('No document to update')) {
+        console.warn('주문 문서를 찾을 수 없어 리뷰 상태를 업데이트하지 못했습니다 (주문 삭제됨).', orderId);
+      } else {
+        // 다른 에러는 로깅하되, 리뷰 삭제 자체는 성공했으므로 상위로 전파하지 않음 (선택 사항)
+        // 상황에 따라 판단해야 하지만, 리뷰 삭제가 메인 의도이므로 경고만 남기겠습니다.
+        console.error('주문 문서 업데이트 중 오류 발생:', updateError);
+      }
+    }
   } catch (error) {
     console.error('리뷰 삭제 실패:', error);
     throw error;
@@ -917,6 +1351,69 @@ export async function uploadReviewImage(file: File): Promise<string> {
   const path = `reviews/${Date.now()}_${file.name}`;
   return uploadImage(file, path);
 }
+
+```
+
+---
+
+## File: src\services\userService.test.ts
+
+```typescript
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { searchUsers } from './userService';
+import { getDocs, query, where, collection } from 'firebase/firestore';
+
+// Mock dependencies
+vi.mock('../lib/firebase', () => ({
+    db: {},
+}));
+
+vi.mock('firebase/firestore', async () => {
+    const actual = await vi.importActual('firebase/firestore');
+    return {
+        ...actual,
+        collection: vi.fn(),
+        query: vi.fn(),
+        where: vi.fn(),
+        getDocs: vi.fn(),
+    };
+});
+
+describe('userService', () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
+
+    describe('searchUsers', () => {
+        it('should search by phone when input is numeric/hyphen', async () => {
+            const mockResult = {
+                docs: [
+                    { id: 'u1', data: () => ({ name: 'Test', phone: '010-1234-5678' }) }
+                ]
+            };
+            (getDocs as any).mockResolvedValue(mockResult);
+
+            const result = await searchUsers('0101234');
+
+            expect(where).toHaveBeenCalledWith('phone', '>=', '0101234');
+            expect(result).toHaveLength(1);
+        });
+
+        it('should search by displayName when input is text', async () => {
+            const mockResult = {
+                docs: [
+                    { id: 'u2', data: () => ({ displayName: 'Hong', phone: '010-0000-0000' }) }
+                ]
+            };
+            (getDocs as any).mockResolvedValue(mockResult);
+
+            const result = await searchUsers('Hong');
+
+            expect(where).toHaveBeenCalledWith('displayName', '>=', 'Hong');
+            expect(result).toHaveLength(1);
+        });
+    });
+});
 
 ```
 

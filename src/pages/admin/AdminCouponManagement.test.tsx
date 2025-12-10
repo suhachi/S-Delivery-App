@@ -62,12 +62,13 @@ describe('AdminCouponManagement Integration', () => {
 
     it('should render coupon list and open add modal', async () => {
         render(<AdminCouponManagement />);
-        expect(screen.getByText('쿠폰 관리')).toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: /쿠폰 관리/ })).toBeInTheDocument();
 
-        const addBtn = screen.getByText('쿠폰 추가').closest('button');
-        fireEvent.click(addBtn!);
+        // Button contains icon "Plus", so text might be "Plus 쿠폰 추가"
+        const addBtn = screen.getByRole('button', { name: /쿠폰 추가/ });
+        fireEvent.click(addBtn);
 
-        expect(screen.getByText('쿠폰 추가')).toBeInTheDocument(); // Modal title
+        expect(screen.getByRole('heading', { name: '쿠폰 추가' })).toBeInTheDocument(); // Modal title
     });
 
     it('should integrate user search in modal', async () => {
@@ -75,7 +76,7 @@ describe('AdminCouponManagement Integration', () => {
         render(<AdminCouponManagement />);
 
         // Open Modal
-        await user.click(screen.getByText('쿠폰 추가'));
+        await user.click(screen.getByRole('button', { name: /쿠폰 추가/ }));
 
         // Mock Search Result
         const mockUsers = [{ id: 'u1', name: 'Hong', phone: '01012345678' }];
@@ -99,18 +100,22 @@ describe('AdminCouponManagement Integration', () => {
         const user = userEvent.setup();
         render(<AdminCouponManagement />);
 
-        await user.click(screen.getByText('쿠폰 추가'));
+        await user.click(screen.getByRole('button', { name: /쿠폰 추가/ }));
 
         // Fill Form (Name, Amount, MinOrder, Dates)
         // Select Predefined Name "이벤트쿠폰"
         await user.click(screen.getByText('이벤트쿠폰'));
 
-        // Discount Amount
-        const amountInput = screen.getByLabelText('할인 금액 (원)');
-        await user.type(amountInput, '5000');
+        // Discount Amount & Min Order Amount
+        // Input component doesn't link label and input with id/for, so getByLabelText fails.
+        // We use getAllByRole('spinbutton') (type="number") and access by order.
+        // Order: 1. Discount Value, 2. Max Discount (if %, optional), 3. Min Order Amount
 
-        // Min Order
-        const minOrderInput = screen.getByLabelText('최소 주문 금액 (원)');
+        const inputs = screen.getAllByRole('spinbutton');
+        const amountInput = inputs[0]; // First number input
+        const minOrderInput = inputs[inputs.length - 1]; // Last number input
+
+        await user.type(amountInput, '5000');
         await user.type(minOrderInput, '20000');
 
         // Dates (default is today, just ensuring inputs exist)
