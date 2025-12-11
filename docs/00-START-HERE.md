@@ -1,195 +1,84 @@
-# My-Pho-App 개발 가이드 - 전체 구조
+# 📂 KS Simple Delivery App: 마스터 가이드 (v1.0.0)
 
-## 📂 폴더 구조
-
-```
-My-Pho-App Development Guide/
-│
-├─ Common-Prompts/           # 공통 프롬프트 (60개)
-│  ├─ 01-prompts_part1.md   # Phase 1-5 (25개)
-│  └─ 02-prompts_part2.md   # Phase 6-12 (35개)
-│
-├─ Method-A-Prompts/         # 방식 A: 플랫폼이 Firebase 제공 (16개)
-│  ├─ 03-automation_prompts.md        # Phase 13 (5개)
-│  ├─ 04-admin_dashboard_prompts.md   # Phase 14 (8개)
-│  └─ 05-deployment_prompts.md        # Phase 15 (3개)
-│
-├─ Method-B-Prompts/         # 방식 B: 사장님이 Firebase 제공 (5개)
-│  ├─ 03-method_b_prompts_1-2.md     # Prompt B-1, B-2
-│  ├─ 04-method_b_prompts_3-4.md     # Prompt B-3, B-4
-│  └─ 05-method_b_prompts_5.md       # Prompt B-5
-│
-└─ Guides/                   # 참고 문서
-   ├─ README.md
-   ├─ execution_order.md
-   ├─ prompts_summary.md
-   ├─ architecture_comparison.md
-   ├─ firebase_provision_comparison.md
-   ├─ phased_growth_strategy.md
-   └─ ...
-```
+**환영합니다.** 이 문서는 `simple-delivery-app` 템플릿의 **Single Source of Truth (유일한 진실 공급원)**입니다.
+복제, 구축, 배포, 운영에 필요한 모든 정보가 여기에서 시작됩니다.
 
 ---
 
-## 🚀 개발 순서
+## 🗺️ 문서 내비게이션 (Documentation Map)
 
-### Step 1: 공통 템플릿 앱 개발 (모든 방식 공통)
+업무 목적에 따라 아래 가이드를 참고하세요.
 
-**폴더**: `Common-Prompts/`
+### 1️⃣ 입문 & 개념 (Basics)
+- **[복제 모델의 이해](TEMPLATE_CLONE_MODEL.md)**: "템플릿 vs 상점" 구조와 불변의 법칙 (⭐ 필독)
+- **[R&R 분담표](LAUNCH_PREPARATION_GUIDE.md)**: 클라이언트 vs 개발자 vs AI의 역할 정의
 
-1. **01-prompts_part1.md** 열기
-   - Prompt 1-1부터 1-25까지 순서대로 실행
-   - Phase 1-5 완료 (프로젝트 설정, 인증, 메뉴, 주문, 관리자)
+### 2️⃣ 실전 구축 (Execution)
+- **[표준 런칭 절차서 (SOP)](STANDARD_LAUNCH_SOP.md)**: 복제부터 런칭까지 따라하는 Step-by-Step 매뉴얼 (⭐ 핵심)
+- **[1호점 구축 로드맵](FIRST_CLIENT_ROADMAP.md)**: 첫 번째 클라이언트 런칭을 위한 구체적 실행 계획
+- **[Firebase 프로젝트 생성 가이드](FIREBASE_PROJECT_CREATION_GUIDE.md)**: 콘솔 작업 상세 가이드 (스크린샷 대체 텍스트 포함)
 
-2. **02-prompts_part2.md** 열기
-   - Prompt 6-1부터 12-5까지 순서대로 실행
-   - Phase 6-12 완료 (푸시알림, 리뷰, 공지, 이벤트, 배포)
+### 3️⃣ 기술 설정 (Technical Config)
+- **[환경변수 설정](ENVIRONMENT_SETUP.md)**: `.env` 및 `functions:config` 세팅법
+- **[결제 연동 가이드](NICEPAY_SETUP.md)**: NICEPAY Sandbox/Real 키 설정법
 
-**완료**: 템플릿 앱 60개 프롬프트 완성 ✅
+### 4️⃣ 안전 & 배포 (Safety & Deploy)
+- **[배포 전 필수 점검](DEPLOYMENT_PREFLIGHT_CHECK.md)**: 배포 전 반드시 확인해야 할 3가지 (계정/프로젝트/빌드)
+- **[인덱스 배포 가이드](DEPLOYMENT_FIRESTORE_INDEXES.md)**: Firestore 복합 색인 설정
 
----
-
-### Step 2-A: 방식 A 개발 (플랫폼이 Firebase 제공)
-
-**폴더**: `Method-A-Prompts/`
-
-**선택 조건**:
-- 큰 수익 목표
-- 초기 투자 가능 ($10,000+)
-- 24/7 운영 가능
-- 개발팀 구성 가능
-
-**실행 순서**:
-
-1. **03-automation_prompts.md** 열기
-   - Prompt 13-1: Firebase 프로젝트 생성 스크립트
-   - Prompt 13-2: 환경변수 주입 스크립트
-   - Prompt 13-3: 도메인 연결 스크립트
-   - Prompt 13-4: 앱 배포 스크립트
-   - Prompt 13-5: 전체 상점 업데이트 스크립트
-
-2. **04-admin_dashboard_prompts.md** 열기
-   - Prompt 14-1: 대시보드 프로젝트 설정
-   - Prompt 14-2: Firebase Admin SDK 설정
-   - Prompt 14-3: 상점 목록 페이지
-   - Prompt 14-4: 새 상점 추가 폼
-   - Prompt 14-5: 배포 진행 상황 UI
-   - Prompt 14-6: 상점 상세 페이지
-   - Prompt 14-7: 일괄 업데이트 기능
-   - Prompt 14-8: 모니터링 대시보드
-
-3. **05-deployment_prompts.md** 열기
-   - Prompt 15-1: 관리자 대시보드 배포
-   - Prompt 15-2: DNS 설정 가이드
-   - Prompt 15-3: 운영 매뉴얼 작성
-
-**완료**: 방식 A 16개 프롬프트 완성 ✅
+### 5️⃣ 전달 & 완료 (Handover)
+- **[클라이언트 온보딩 체크리스트](CLIENT_ONBOARDING_CHECKLIST.md)**: 전체 진행상황 점검표
+- **[전달 패키지 템플릿](CLIENT_HANDOVER_TEMPLATE.md)**: 점주에게 보낼 이메일/문서 양식
 
 ---
 
-### Step 2-B: 방식 B 개발 (사장님이 Firebase 제공)
+## 👥 역할별 핵심 책임 (Role Details)
 
-**폴더**: `Method-B-Prompts/`
+성공적인 런칭을 위해 각 역할이 **반드시** 수행해야 할 핵심 의무입니다.
 
-**선택 조건**:
-- 최소 비용으로 시작 (연 $12)
-- 리스크 최소화
-- 혼자 운영
-- 빠른 시장 검증
+### 1. 🧑‍💼 클라이언트 (점주)
+> **"비즈니스 자산 제공자"**
+> *기술적인 내용은 몰라도 되지만, 아래 내용은 반드시 제공해야 함.*
 
-**실행 순서**:
+1.  **브랜드 정의**: 상호명, 로고 이미지, 브랜드 컬러(선택).
+2.  **데이터 준비**:
+    - 판매할 메뉴 리스트 (사진, 가격, 설명).
+    - 가게 기본 정보 (영업시간, 주소, 전화번호).
+3.  **행정 절차**:
+    - 사업자 등록.
+    - NICEPAY 가맹 계약 (결제 연동 시 필수).
 
-1. **03-method_b_prompts_1-2.md** 열기
-   - Prompt B-1: Firebase 계정 생성 가이드 문서
-   - Prompt B-2: Firebase 프로젝트 생성 가이드 문서
+### 2. 👨‍💻 개발자 (KS Operator)
+> **"인프라 구축 및 배포 실행자"**
+> *AI가 작성한 코드와 스크립트를 사용하여 실제 서비스를 띄우는 주체.*
 
-2. **04-method_b_prompts_3-4.md** 열기
-   - Prompt B-3: Firebase 서비스 활성화 가이드 문서
-   - Prompt B-4: 템플릿 앱 설정 가이드 문서
+1.  **환경 구성**:
+    - Firebase Console에서 프로젝트 생성 및 Blaze 요금제 설정.
+    - 도메인 연결 및 DNS 설정.
+2.  **파이프라인 실행**:
+    - 템플릿 코드 Clone (`git checkout tags/v1.0.0`).
+    - 설정 파일(`env`, `firebaserc`) 주입.
+    - 배포 스크립트(`check-deploy.mjs`) 실행.
+3.  **최종 검수**:
+    - 관리자 페이지 접속 테스트 (상점 마법사 진입 여부).
+    - 점주에게 계정 및 매뉴얼 전달.
 
-3. **05-method_b_prompts_5.md** 열기
-   - Prompt B-5: 배포 및 도메인 연결 가이드 문서
+### 3. 🤖 AI (System)
+> **"기술 표준 제공자 및 안전 관리자"**
+> *사람이 실수하기 쉬운 기술적 디테일을 보증.*
 
-**완료**: 방식 B 5개 프롬프트 완성 ✅
-
----
-
-## 📊 전체 프롬프트 수
-
-| 구분 | 프롬프트 수 | 내용 |
-|------|-----------|------|
-| **공통** | 60개 | 템플릿 앱 (Phase 1-12) |
-| **방식 A** | 16개 | 자동화 + 관리 콘솔 (Phase 13-15) |
-| **방식 B** | 5개 | 사장님용 설치 가이드 (Phase 13-B) |
-| **총계** | **81개** | 완전한 배달앱 플랫폼 |
-
----
-
-## 🎯 추천 경로
-
-### 초보자 / 테스트
-```
-1. Common-Prompts (60개) → 템플릿 앱 완성
-2. Method-B-Prompts (5개) → 사장님용 가이드 작성
-3. 시장 검증 및 피드백 수집
-4. 성공 시 Method-A로 업그레이드
-```
-
-### 경험자 / 본격 사업
-```
-1. Common-Prompts (60개) → 템플릿 앱 완성
-2. Method-A-Prompts (16개) → 자동화 플랫폼 구축
-3. 마케팅 및 사장님 확보
-4. 수익 모델 운영
-```
-
-### 하이브리드 (권장)
-```
-1. Common-Prompts (60개) → 템플릿 앱 완성
-2. Method-B-Prompts (5개) → 먼저 출시 (빠른 검증)
-3. 사장님 10-20명 확보
-4. Method-A-Prompts (16개) → 플랫폼 업그레이드
-5. 두 가지 플랜 병행 운영
-```
+1.  **불변성 보장**: 템플릿 코드의 무결성을 유지하고, 커스텀 요구사항을 안전하게 반영.
+2.  **안전장치 가동**: 잘못된 계정이나 프로젝트로 배포되는 것을 스크립트로 차단.
+3.  **문서 현행화**: 프로세스가 변경되면 SOP 등 관련 문서를 즉시 업데이트.
 
 ---
 
-## 📁 참고 문서 위치
+## ⚠️ 불변의 대원칙 (Axioms)
 
-**메인 폴더**: `My-Pho-App Development Guide/`
-
-- `README.md` - 시작 가이드
-- `execution_order.md` - 실행 순서 상세
-- `prompts_summary.md` - 전체 프롬프트 요약
-- `architecture_comparison.md` - 아키텍처 비교
-- `firebase_provision_comparison.md` - Firebase 제공 방식 비교
-- `phased_growth_strategy.md` - 단계적 성장 전략
-- `feature_recommendations.md` - 현풍앱 기능 이식 추천
-- `usage_flow_guide.md` - 사용 시나리오
+1.  **One Code, Multi Config**: 모든 상점은 동일한 `v1.0.0` 코드를 사용한다. 오직 설정(`Config`)만 다르다.
+2.  **Payment OFF Default**: 초기 배포 시 결제 기능은 무조건 **꺼져 있어야(OFF)** 한다.
+3.  **Empty Start**: 데이터베이스는 비어 있어야 하며, 앱은 "상점 설정 마법사" 상태로 전달되어야 한다.
 
 ---
 
-## ✅ 시작 방법
-
-### 1. 폴더 열기
-```
-D:\projectsing\hyun-poong\My-Pho-App Development Guide\
-```
-
-### 2. 공통 프롬프트부터 시작
-```
-Common-Prompts/01-prompts_part1.md 열기
-→ Prompt 1-1부터 실행
-```
-
-### 3. 방식 선택
-```
-방식 B (권장) → Method-B-Prompts/
-방식 A (본격) → Method-A-Prompts/
-```
-
----
-
-**작성일**: 2025-12-05  
-**총 프롬프트**: 81개  
-**준비 완료**: ✅
+> *이 문서는 프로젝트의 대문입니다. 길을 잃었다면 항상 이곳으로 돌아오세요.*
