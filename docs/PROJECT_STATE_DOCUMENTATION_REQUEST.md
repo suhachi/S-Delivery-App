@@ -54,6 +54,10 @@ AI가 이 프로젝트를 "완전히 이해"했다는 것은 아래 5가지를 �
 *   [ ] `firestore.rules`
 *   [ ] `firestore.indexes.json`
 *   [ ] `storage.rules`
+*   [ ] **Cloud Functions (서버리스 백엔드 로직)**:
+    *   [ ] `functions/src/index.ts` (또는 `index.js`)
+    *   [ ] `functions/package.json`
+    *   [ ] `functions/tsconfig.json`
 *   [ ] **Firebase Console 정보** (스크린샷 또는 텍스트 정리):
     *   Authentication 사용 방식 (Email/Password 활성화 여부 등)
     *   Firestore 컬렉션 구조 요약
@@ -63,17 +67,20 @@ AI가 이 프로젝트를 "완전히 이해"했다는 것은 아래 5가지를 �
 > **분석 목적**: 페이지 흐름, 관리자/고객 분리 매커니즘, 전역 상태 관리 파악
 
 **방법 A (권장)**: `src/` 폴더 전체 압축 업로드
-**방법 B**: 주요 파일 개별 업로드
+**방법 B**: 주요 파일 개별 업로드 (단, 아래 항목은 **필수** 포함)
 *   [ ] `src/main.tsx`
 *   [ ] `src/App.tsx`
+*   [ ] **Core Logic Files**:
+    *   [ ] `src/contexts/*.tsx` (전체: Store, Auth, Cart Context)
+    *   [ ] `src/services/*.ts` (전체: API 호출 로직)
+    *   [ ] `src/types/*.ts` (전체: 데이터 모델 정의)
 *   [ ] `src/pages/**` (주요 페이지 컴포넌트)
 *   [ ] `src/components/**` (핵심 공통 컴포넌트)
-*   [ ] `src/contexts/**` (StoreContext, AuthContext 등)
-*   [ ] `src/services/**` (API 호출 로직)
-
----
 
 ## 3. 🧩 복제 프로젝트 특화 자료 (Priority: ★★☆)
+
+### 3-0. 배포 안전장치 (Safety Scripts)
+*   [ ] `scripts/check-deploy.mjs` (배포 전 검증 스크립트) - **필수**
 
 ### 3-1. 관리자 기능 이해용
 *   [ ] 관리자 계정 생성 로직 설명 (문서 또는 코드 위치)
@@ -84,6 +91,7 @@ AI가 이 프로젝트를 "완전히 이해"했다는 것은 아래 5가지를 �
 *   [ ] 주문 생성 → Firestore 저장 데이터 구조 예시 (JSON 형태)
 *   [ ] 주문 상태 변경 흐름 (접수 → 준비 → 배달 → 완료)
 *   [ ] 고객 주문 화면 ↔ 관리자 접수 화면 연결 방식 설명 (Snapshot Listener 등)
+*   [ ] **알림 시스템 동작 방식** (Sound, Toast 등)
 
 ---
 
@@ -91,6 +99,7 @@ AI가 이 프로젝트를 "완전히 이해"했다는 것은 아래 5가지를 �
 
 > "지금 실제로 어떻게 운영되고 있는가"를 기록하여 재현성을 확보
 
+*   [ ] `public/` 폴더 구조 (파비콘, 알림 사운드 파일 등)
 *   [ ] 현재 배포된 데모/템플릿 URL
 *   [ ] 배포에 정기적으로 사용하는 명령어 히스토리
 *   [ ] 로컬 개발 실행 명령어 (`npm run dev` 등)
