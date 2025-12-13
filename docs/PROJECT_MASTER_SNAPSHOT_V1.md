@@ -250,7 +250,7 @@ VITE_NICEPAY_CLIENT_ID=""
 
 ---
 
-## 3. 🔒 백엔드 보안 규칙 (Security Rules)
+## 3. 🔒 백엔드 보안 규칙 & 인덱스 (Security Rules)
 
 ### 3-1. `firestore.rules`
 > **역할**: 데이터베이스 권한 제어.
@@ -356,7 +356,163 @@ service cloud.firestore {
 }
 ```
 
-### 3-2. `storage.rules`
+### 3-2. `src/firestore.indexes.json`
+> **역할**: Firestore 복합 쿼리 인덱스 정의.
+> **핵심 포인트**: 배포 시 `firebase deploy --only firestore:indexes` 명령어로 함께 배포됨.
+
+```json
+{
+  "indexes": [
+    {
+      "collectionGroup": "orders",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "orders",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "userId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "orders",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "adminDeleted",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "orders",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "adminDeleted",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "reviews",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "notices",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "pinned",
+          "order": "DESCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "menus",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "category",
+          "arrayConfig": "CONTAINS"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "events",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "active",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "startDate",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "events",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "active",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "endDate",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "coupons",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "isActive",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}
+```
+
+### 3-3. `storage.rules`
 > **역할**: 이미지 스토리지 업로드/다운로드 권한.
 
 ```javascript
@@ -403,7 +559,263 @@ service firebase.storage {
 
 ---
 
-## 4. 📂 프론트엔드 구조 (Structure)
+## 4. 📂 프론트엔드 핵심 구조 (Frontend Core)
+
+### 4-1. `src/main.tsx` (Entry Point)
+> **역할**: React 앱 마운트 포인트.
+
+```typescript
+import { createRoot } from "react-dom/client";
+import App from "./App.tsx";
+import "./index.css";
+
+createRoot(document.getElementById("root")!).render(<App />);
+```
+
+### 4-2. `src/App.tsx` (Router & Structure)
+> **역할**: 전체 페이지 라우팅 및 전역 Provider 설정. 여기서 앱의 모든 페이지 구조를 확인할 수 있음.
+
+```typescript
+import React from 'react';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { Toaster } from 'sonner';
+import WelcomePage from './pages/WelcomePage';
+import LoginPage from './pages/LoginPage';
+import SignupPage from './pages/SignupPage';
+import MenuPage from './pages/MenuPage';
+import CartPage from './pages/CartPage';
+import OrdersPage from './pages/OrdersPage';
+import OrderDetailPage from './pages/OrderDetailPage';
+import CheckoutPage from './pages/CheckoutPage';
+import MyPage from './pages/MyPage';
+import StoreSetupWizard from './pages/StoreSetupWizard';
+import AdminDashboard from './pages/admin/AdminDashboard';
+import AdminMenuManagement from './pages/admin/AdminMenuManagement';
+import AdminOrderManagement from './pages/admin/AdminOrderManagement';
+import AdminCouponManagement from './pages/admin/AdminCouponManagement';
+import AdminReviewManagement from './pages/admin/AdminReviewManagement';
+import AdminNoticeManagement from './pages/admin/AdminNoticeManagement';
+import AdminEventManagement from './pages/admin/AdminEventManagement';
+import AdminStoreSettings from './pages/admin/AdminStoreSettings';
+import NoticePage from './pages/NoticePage';
+import EventsPage from './pages/EventsPage';
+import ReviewBoardPage from './pages/ReviewBoardPage';
+import { CartProvider } from './contexts/CartContext';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { StoreProvider, useStore } from './contexts/StoreContext';
+import TopBar from './components/common/TopBar';
+import AdminOrderAlert from './components/admin/AdminOrderAlert';
+import NicepayReturnPage from './pages/NicepayReturnPage';
+import './styles/globals.css';
+
+// Protected Route Component
+function RequireAuth({ children, requireAdmin = false }: { children: React.ReactNode; requireAdmin?: boolean }) {
+  const { user, isAdmin, loading: authLoading } = useAuth();
+  const { store, loading: storeLoading } = useStore();
+  const location = useLocation();
+
+  if (authLoading || (requireAdmin && storeLoading)) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+
+  if (requireAdmin && !isAdmin) {
+    return <Navigate to="/" replace />;
+  }
+
+  // 상점이 생성되지 않은 상태에서 관리자가 접속하면 상점 생성 페이지로 리다이렉트
+  if (requireAdmin && isAdmin && !store && !storeLoading) {
+    if (location.pathname !== '/store-setup') {
+      return <Navigate to="/store-setup" replace />;
+    }
+  }
+
+  return <>{children}</>;
+}
+
+function AppContent() {
+  const { user, loading: authLoading } = useAuth();
+  const { store, loading: storeLoading } = useStore();
+
+  // 테마 색상 적용
+  React.useEffect(() => {
+    if (store?.primaryColor) {
+      const root = document.documentElement;
+      const primary = store.primaryColor;
+
+      // 메인 색상 적용
+      root.style.setProperty('--color-primary-500', primary);
+
+      // 그라데이션 등을 위한 파생 색상 생성
+      root.style.setProperty('--color-primary-600', adjustBrightness(primary, -10));
+    }
+  }, [store?.primaryColor]);
+
+  // 상점 이름으로 타이틀 변경
+  React.useEffect(() => {
+    if (store?.name) {
+      document.title = store.name;
+    } else {
+      document.title = 'Simple Delivery App';
+    }
+  }, [store?.name]);
+
+  if (authLoading || storeLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">로딩 중...</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <CartProvider>
+      <div className="min-h-screen bg-gray-50">
+        {user && <TopBar />}
+        <AdminOrderAlert />
+        <Routes>
+          <Route path="/" element={<WelcomePage />} />
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/signup" element={<SignupPage />} />
+          <Route path="/menu" element={<RequireAuth><MenuPage /></RequireAuth>} />
+
+          <Route path="/cart" element={<RequireAuth><CartPage /></RequireAuth>} />
+          <Route path="/payment/nicepay/return" element={<NicepayReturnPage />} />
+          <Route path="/nicepay/return" element={<NicepayReturnPage />} />
+          <Route path="/notices" element={<NoticePage />} />
+          <Route path="/events" element={<EventsPage />} />
+          <Route path="/orders" element={<RequireAuth><OrdersPage /></RequireAuth>} />
+          <Route path="/orders/:orderId" element={<RequireAuth><OrderDetailPage /></RequireAuth>} />
+          <Route path="/reviews" element={<ReviewBoardPage />} />
+          <Route path="/checkout" element={<RequireAuth><CheckoutPage /></RequireAuth>} />
+
+          <Route path="/mypage" element={<RequireAuth><MyPage /></RequireAuth>} />
+
+          {/* Admin Routes */}
+          <Route path="/admin" element={<RequireAuth requireAdmin><AdminDashboard /></RequireAuth>} />
+          <Route path="/admin/menus" element={<RequireAuth requireAdmin><AdminMenuManagement /></RequireAuth>} />
+          <Route path="/admin/orders" element={<RequireAuth requireAdmin><AdminOrderManagement /></RequireAuth>} />
+          <Route path="/admin/coupons" element={<RequireAuth requireAdmin><AdminCouponManagement /></RequireAuth>} />
+          <Route path="/admin/reviews" element={<RequireAuth requireAdmin><AdminReviewManagement /></RequireAuth>} />
+          <Route path="/admin/notices" element={<RequireAuth requireAdmin><AdminNoticeManagement /></RequireAuth>} />
+          <Route path="/admin/events" element={<RequireAuth requireAdmin><AdminEventManagement /></RequireAuth>} />
+          <Route path="/admin/store-settings" element={<RequireAuth requireAdmin><AdminStoreSettings /></RequireAuth>} />
+
+          {/* Store Setup */}
+          <Route path="/store-setup" element={<RequireAuth requireAdmin><StoreSetupWizard /></RequireAuth>} />
+        </Routes>
+      </div>
+      <Toaster position="bottom-center" richColors duration={2000} />
+    </CartProvider>
+  );
+}
+
+// 색상 밝기 조절 유틸리티
+function adjustBrightness(hex: string, percent: number) {
+  const num = parseInt(hex.replace('#', ''), 16);
+  const amt = Math.round(2.55 * percent);
+  const R = (num >> 16) + amt;
+  const G = (num >> 8 & 0x00FF) + amt;
+  const B = (num & 0x0000FF) + amt;
+  return '#' + (0x1000000 + (R < 255 ? R < 1 ? 0 : R : 255) * 0x10000 + (G < 255 ? G < 1 ? 0 : G : 255) * 0x100 + (B < 255 ? B < 1 ? 0 : B : 255)).toString(16).slice(1);
+}
+
+export default function App() {
+  return (
+    <BrowserRouter>
+      <AuthProvider>
+        <StoreProvider>
+          <AppContent />
+        </StoreProvider>
+      </AuthProvider>
+    </BrowserRouter>
+  );
+}
+```
+
+### 4-3. Data Models (`src/types/store.ts`)
+> **역할**: 핵심 데이터 모델(상점) 정의 예시.
+
+```typescript
+export interface Store {
+  id: string; // 단일 문서 ID (예: 'store')
+  name: string;
+  description: string;
+
+  // 연락처 정보
+  phone: string;
+  email: string;
+  address: string;
+
+  // 브랜딩
+  logoUrl?: string;
+  bannerUrl?: string;
+  primaryColor?: string; // 메인 테마 색상
+
+  // 운영 정보
+  businessHours?: BusinessHours;
+  deliveryFee: number;
+  minOrderAmount: number;
+
+  // 설정
+  settings: StoreSettings;
+
+  // 메타데이터
+  createdAt: any; // Firestore Timestamp
+  updatedAt: any; // Firestore Timestamp
+}
+
+export interface BusinessHours {
+  monday?: DayHours;
+  tuesday?: DayHours;
+  wednesday?: DayHours;
+  thursday?: DayHours;
+  friday?: DayHours;
+  saturday?: DayHours;
+  sunday?: DayHours;
+}
+
+export interface DayHours {
+  open: string; // "09:00"
+  close: string; // "22:00"
+  closed: boolean; // 휴무일 여부
+}
+
+export interface StoreSettings {
+  // 주문 설정
+  autoAcceptOrders: boolean; // 자동 주문 접수
+  estimatedDeliveryTime: number; // 예상 배달 시간 (분)
+
+  // 결제 설정
+  paymentMethods: PaymentMethod[];
+
+  // 알림 설정
+  notificationEmail?: string;
+  notificationPhone?: string;
+
+  // 기능 활성화
+  enableReviews: boolean;
+  enableCoupons: boolean;
+  enableNotices: boolean;
+  enableEvents: boolean;
+}
+
+export type PaymentMethod = '앱결제' | '만나서카드' | '만나서현금' | '방문시결제';
+```
+
+---
+
+## 5. 📂 디렉토리 구조 (Directory Structure)
 
 ```text
 src/
@@ -416,5 +828,3 @@ src/
 ├─ types/          # TypeScript 인터페이스
 └─ App.tsx         # 라우팅 및 전역 레이아웃 설정
 ```
-
-(이 파일은 핵심 파일들의 전체 소스 코드를 포함하므로, 이 문서를 참조하는 AI는 별도 파일 조회 없이 프로젝트의 빌드/배포/보안/환경 구성을 완벽히 재현할 수 있음)
