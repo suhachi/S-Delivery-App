@@ -64,6 +64,16 @@ export interface StoreSettings {
   enableCoupons: boolean;
   enableNotices: boolean;
   enableEvents: boolean;
+  // 배달 대행 설정 (v2.0)
+  deliverySettings?: DeliverySettings;
+}
+
+export interface DeliverySettings {
+  provider: 'manual' | 'barogo' | 'vroong' | 'mesh'; // 'manual' = 자체배달
+  apiKey?: string;
+  apiSecret?: string;
+  shopId?: string; // 대행사측 상점 ID
+  webhookUrl?: string; // 대행사 -> 앱 상태 업데이트용 (자동생성/표시용)
 }
 
 export type PaymentMethod = '앱결제' | '만나서카드' | '만나서현금' | '방문시결제';
@@ -83,4 +93,8 @@ export interface StoreFormData {
   bannerUrl?: string;
   businessHours?: BusinessHours;
   settings?: StoreSettings;
+}
+
+export interface UpdateStoreFormData extends StoreFormData {
+  primaryColor?: string;
 }

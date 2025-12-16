@@ -8,13 +8,14 @@ import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 import { useStore } from '../../contexts/StoreContext';
 import { UpdateStoreFormData } from '../../types/store';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 import AdminSidebar from '../../components/admin/AdminSidebar';
 import Card from '../../components/common/Card';
 import Button from '../../components/common/Button';
 import Input from '../../components/common/Input';
 import ImageUpload from '../../components/common/ImageUpload';
+import AddressSearchInput from '../../components/common/AddressSearchInput';
 import { uploadStoreImage } from '../../services/storageService';
 import { Store, Save, Plus } from 'lucide-react';
 
@@ -48,6 +49,7 @@ export default function AdminStoreSettings() {
         logoUrl: store.logoUrl || '',
         bannerUrl: store.bannerUrl || '',
         primaryColor: store.primaryColor || '#3b82f6',
+        settings: store.settings, // 기존 설정 유지
       });
     }
   }, [store]);
@@ -192,10 +194,10 @@ export default function AdminStoreSettings() {
                   required
                 />
 
-                <Input
+                <AddressSearchInput
                   label="주소"
                   value={formData.address}
-                  onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                  onChange={(address) => setFormData({ ...formData, address })}
                   required
                 />
               </div>
@@ -221,6 +223,98 @@ export default function AdminStoreSettings() {
                   onChange={(e) => setFormData({ ...formData, minOrderAmount: parseInt(e.target.value) || 0 })}
                   required
                 />
+              </div>
+            </Card>
+
+            {/* 배달 대행 설정 (v2.0) */}
+            <Card>
+              <h2 className="text-xl font-bold text-gray-900 mb-6">배달 대행 연동</h2>
+
+              <div className="space-y-5">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                    대행사 선택
+                  </label>
+                  <select
+                    value={formData.settings?.deliverySettings?.provider || 'manual'}
+                    onChange={(e) => setFormData({
+                      ...formData,
+                      settings: {
+                        ...formData.settings!,
+                        deliverySettings: {
+                          ...formData.settings?.deliverySettings,
+                          provider: e.target.value as any
+                        }
+                      }
+                    })}
+                    className="w-full px-4 py-2.5 text-gray-900 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                  >
+                    <option value="manual">연동 안 함 (자체 배달/전화 호출)</option>
+                    <option value="saenggagdaero">생각대로 (Thinking)</option>
+                    <option value="barogo">바로고 (Barogo)</option>
+                    <option value="vroong">부릉 (Vroong)</option>
+                  </select>
+                </div>
+
+                {/* API 설정 (연동 시에만 표시) */}
+                {formData.settings?.deliverySettings?.provider !== 'manual' && formData.settings?.deliverySettings?.provider && (
+                  <div className="space-y-4 pt-4 border-t border-gray-100">
+                    <Input
+                      label="상점 ID (Shop ID)"
+                      value={formData.settings.deliverySettings.shopId || ''}
+                      onChange={(e) => setFormData({
+                        ...formData,
+                        settings: {
+                          ...formData.settings!,
+                          deliverySettings: {
+                            ...formData.settings?.deliverySettings!,
+                            shopId: e.target.value
+                          }
+                        }
+                      })}
+                      placeholder="대행사에서 발급받은 상점 코드를 입력하세요"
+                    />
+                    <Input
+                      label="API Key"
+                      type="password"
+                      value={formData.settings.deliverySettings.apiKey || ''}
+                      onChange={(e) => setFormData({
+                        ...formData,
+                        settings: {
+                          ...formData.settings!,
+                          deliverySettings: {
+                            ...formData.settings?.deliverySettings!,
+                            apiKey: e.target.value
+                          }
+                        }
+                      })}
+                      placeholder="API Key 입력"
+                    />
+                    <Input
+                      label="API Secret"
+                      type="password"
+                      value={formData.settings.deliverySettings.apiSecret || ''}
+                      onChange={(e) => setFormData({
+                        ...formData,
+                        settings: {
+                          ...formData.settings!,
+                          deliverySettings: {
+                            ...formData.settings?.deliverySettings!,
+                            apiSecret: e.target.value
+                          }
+                        }
+                      })}
+                      placeholder="API Secret 입력"
+                    />
+
+                    <div className="bg-gray-50 p-4 rounded-lg">
+                      <p className="text-xs text-gray-500 mb-1">Webhook URL (대행사 등록용)</p>
+                      <code className="text-sm bg-gray-100 px-2 py-1 rounded select-all block break-all">
+                        https://us-central1-{import.meta.env.VITE_FIREBASE_PROJECT_ID}.cloudfunctions.net/deliveryWebhook
+                      </code>
+                    </div>
+                  </div>
+                )}
               </div>
             </Card>
 

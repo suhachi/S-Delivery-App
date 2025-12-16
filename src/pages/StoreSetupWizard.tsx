@@ -8,6 +8,7 @@ import { StoreFormData } from '../types/store';
 import { toast } from 'sonner';
 import Button from '../components/common/Button';
 import Input from '../components/common/Input';
+import AddressSearchInput from '../components/common/AddressSearchInput';
 import Card from '../components/common/Card';
 import { Store as StoreIcon, ChevronRight, ChevronLeft, Check } from 'lucide-react';
 
@@ -161,7 +162,7 @@ export default function StoreSetupWizard() {
         {/* Header */}
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-20 h-20 gradient-primary rounded-3xl mb-4">
-            <Store className="w-10 h-10 text-white" />
+            <StoreIcon className="w-10 h-10 text-white" />
           </div>
           <h1 className="text-4xl mb-2">
             <span className="bg-gradient-to-r from-blue-600 to-blue-500 bg-clip-text text-transparent">
@@ -260,11 +261,10 @@ export default function StoreSetupWizard() {
                 required
               />
 
-              <Input
+              <AddressSearchInput
                 label="주소"
                 value={formData.address}
-                onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                placeholder="서울시 강남구 테헤란로 123"
+                onChange={(address) => setFormData({ ...formData, address })}
                 required
               />
             </div>

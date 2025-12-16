@@ -9,7 +9,7 @@ import { toast } from 'sonner';
 import Card from '../components/common/Card';
 import Button from '../components/common/Button';
 import Input from '../components/common/Input';
-import AddressSearchModal from '../components/common/AddressSearchModal';
+import AddressSearchInput from '../components/common/AddressSearchInput';
 import { Coupon } from '../types/coupon';
 import { createOrder } from '../services/orderService';
 import { useCoupon } from '../services/couponService';
@@ -35,7 +35,7 @@ export default function CheckoutPage() {
 
   const [orderType, setOrderType] = useState<OrderType>('배달주문');
   const [selectedCoupon, setSelectedCoupon] = useState<Coupon | null>(null);
-  const [isAddressSearchOpen, setIsAddressSearchOpen] = useState(false);
+  // const [isAddressSearchOpen, setIsAddressSearchOpen] = useState(false); // Refactored to component inside AddressSearchInput
   const [formData, setFormData] = useState({
     address: '',
     detailAddress: '',
@@ -335,30 +335,14 @@ export default function CheckoutPage() {
                 <div className="space-y-4">
                   {orderType === '배달주문' && (
                     <div className="space-y-2">
-                      <div className="flex gap-2">
-                        <div className="flex-1">
-                          <Input
-                            label="배달 주소"
-                            placeholder="주소 검색을 클릭해주세요"
-                            value={formData.address}
-                            readOnly
-                            onClick={() => setIsAddressSearchOpen(true)}
-                            className="cursor-pointer bg-gray-50"
-                            required
-                          />
-                        </div>
-                        <div className="mt-8">
-                          <Button
-                            type="button"
-                            onClick={() => setIsAddressSearchOpen(true)}
-                            variant="outline"
-                            className="whitespace-nowrap h-[42px]"
-                          >
-                            <Search className="w-4 h-4 mr-1" />
-                            주소 검색
-                          </Button>
-                        </div>
-                      </div>
+                      <AddressSearchInput
+                        label="배달 주소"
+                        value={formData.address}
+                        onChange={(address) => setFormData({ ...formData, address })}
+                        required
+                        className="mb-2"
+                      />
+
                       {formData.address && (
                         <div className="animate-fade-in">
                           <Input
@@ -594,16 +578,8 @@ export default function CheckoutPage() {
           </div>
         </form>
       </div>
-      {isAddressSearchOpen && (
-        <AddressSearchModal
-          onClose={() => setIsAddressSearchOpen(false)}
-          onComplete={(address) => {
-            setFormData(prev => ({ ...prev, address }));
-            // 상세 주소 입력창으로 포커스를 이동하면 좋겠지만, 
-            // 여기서는 상태 업데이트만 처리
-          }}
-        />
-      )}
+      {/* Modal is now handled inside AddressSearchInput */}
+
     </div>
   );
 }
