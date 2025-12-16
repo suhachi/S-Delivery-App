@@ -18,6 +18,8 @@ import AdminCouponManagement from './pages/admin/AdminCouponManagement';
 import AdminReviewManagement from './pages/admin/AdminReviewManagement';
 import AdminNoticeManagement from './pages/admin/AdminNoticeManagement';
 import AdminEventManagement from './pages/admin/AdminEventManagement';
+import AdminMemberPage from './pages/admin/AdminMemberPage';
+import AdminStatsPage from './pages/admin/AdminStatsPage';
 import AdminStoreSettings from './pages/admin/AdminStoreSettings';
 import NoticePage from './pages/NoticePage';
 import EventsPage from './pages/EventsPage';
@@ -137,6 +139,8 @@ function AppContent() {
           <Route path="/admin/reviews" element={<RequireAuth requireAdmin><AdminReviewManagement /></RequireAuth>} />
           <Route path="/admin/notices" element={<RequireAuth requireAdmin><AdminNoticeManagement /></RequireAuth>} />
           <Route path="/admin/events" element={<RequireAuth requireAdmin><AdminEventManagement /></RequireAuth>} />
+          <Route path="/admin/members" element={<RequireAuth requireAdmin><AdminMemberPage /></RequireAuth>} />
+          <Route path="/admin/stats" element={<RequireAuth requireAdmin><AdminStatsPage /></RequireAuth>} />
           <Route path="/admin/store-settings" element={<RequireAuth requireAdmin><AdminStoreSettings /></RequireAuth>} />
 
           {/* Store Setup */}

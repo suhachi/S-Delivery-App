@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, UtensilsCrossed, Package, Ticket, Star, Bell, Calendar, Settings, Home } from 'lucide-react';
+import { LayoutDashboard, UtensilsCrossed, Package, Ticket, Star, Bell, Calendar, Settings, Home, TrendingUp, Users } from 'lucide-react';
 import { useStore } from '../../contexts/StoreContext';
 
 interface AdminSidebarProps {
@@ -19,6 +19,8 @@ export default function AdminSidebar({ className = '' }: AdminSidebarProps) {
     { path: '/admin/reviews', icon: <Star className="w-5 h-5" />, label: '리뷰 관리' },
     { path: '/admin/notices', icon: <Bell className="w-5 h-5" />, label: '공지사항 관리' },
     { path: '/admin/events', icon: <Calendar className="w-5 h-5" />, label: '이벤트 관리' },
+    { path: '/admin/members', icon: <Users className="w-5 h-5" />, label: '회원 관리' },
+    { path: '/admin/stats', icon: <TrendingUp className="w-5 h-5" />, label: '매출 통계' },
     { path: '/admin/store-settings', icon: <Settings className="w-5 h-5" />, label: '상점 설정' },
   ];
 
