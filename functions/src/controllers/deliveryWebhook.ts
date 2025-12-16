@@ -7,7 +7,7 @@ const db = admin.firestore();
 // POST /deliveryWebhook
 export const deliveryWebhookHandler = async (req: functions.https.Request, res: functions.Response) => {
     try {
-        const { deliveryId, status, orderId, shopId } = req.body;
+        const { status, orderId, shopId } = req.body;
 
         console.log(`[Webhook] Received update for Order ${orderId}: ${status}`);
 
@@ -17,7 +17,8 @@ export const deliveryWebhookHandler = async (req: functions.https.Request, res: 
         }
 
         // 1. Get the order
-        const orderRef = db.collection('orders').doc(orderId);
+        // FIXED: Target subcollection 'stores/default/orders' instead of root 'orders'
+        const orderRef = db.collection('stores').doc('default').collection('orders').doc(orderId);
         const orderSnap = await orderRef.get();
 
         if (!orderSnap.exists) {
